@@ -7,7 +7,7 @@ import { SIGNIN_URL } from "./config.js";
 class SigninError extends Error {
   constructor(kind, message) {
     super(message);
-    this.kind = kind; // "credentials" | "network" | "server"
+    this.kind = kind; // "credentials" | "network" | "timeout" | "server"
   }
 }
 
@@ -15,6 +15,7 @@ class SigninError extends Error {
 const ERROR_MESSAGES = {
   credentials: "Invalid username/email or password.",
   network: "Could not reach the school server. Check your connection and try again.",
+  timeout: "The server took too long to respond. Please try again.",
   server: "The server had a problem. Please try again later.",
 };
 
@@ -40,9 +41,14 @@ async function signin(identifier, password) {
     response = await fetch(SIGNIN_URL, {
       method: "POST",
       headers: { Authorization: `Basic ${credentials}` },
+      signal: AbortSignal.timeout(10000), // give up after 10 seconds
     });
   } catch (error) {
-    // fetch throws only when no response could be obtained at all.
+    // A timeout is reported with the name "TimeoutError".
+    if (error.name === "TimeoutError") {
+      throw new SigninError("timeout", error.message);
+    }
+    // Anything else here means no response could be obtained at all.
     throw new SigninError("network", error.message);
   }
 
