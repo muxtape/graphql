@@ -1,6 +1,7 @@
 // Login, logout and token storage.
 import { SIGNIN_URL } from "./config.js";
 import { saveToken } from "./token.js";
+import { redirectIfLoggedIn } from "./session.js";
 
 // ----- Error handling -----
 
@@ -76,6 +77,9 @@ async function signin(identifier, password) {
 }
 
 // ----- Page behaviour -----
+
+// Already logged in? Skip the login form.
+redirectIfLoggedIn();
 
 const form = document.getElementById("login-form");
 const errorElement = document.getElementById("error-message");
