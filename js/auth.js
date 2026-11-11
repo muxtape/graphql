@@ -1,5 +1,6 @@
 // Login, logout and token storage.
 import { SIGNIN_URL } from "./config.js";
+import { saveToken } from "./token.js";
 
 // ----- Error handling -----
 
@@ -64,7 +65,14 @@ async function signin(identifier, password) {
 
   // The token may arrive wrapped in quotes; strip them if present.
   const body = await response.text();
-  return body.trim().replace(/^"|"$/g, "");
+  const token = body.trim().replace(/^"|"$/g, "");
+
+  // A JWT has exactly 3 dot-separated parts. Don't store anything else.
+  if (token.split(".").length !== 3) {
+    throw new SigninError("server", "Unexpected token format");
+  }
+
+  return token;
 }
 
 // ----- Page behaviour -----
@@ -96,8 +104,8 @@ form.addEventListener("submit", async (event) => {
   try {
     const token = await signin(identifier, password);
 
-    // Temporary: Task 1.4 will store the token and redirect.
-    console.log("Signin OK. Token received, parts:", token.split(".").length);
+    saveToken(token);
+    window.location.replace("profile.html");
   } catch (error) {
     if (error instanceof SigninError) {
       showError(ERROR_MESSAGES[error.kind]);
