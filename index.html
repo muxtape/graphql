@@ -3,27 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>GraphQL Profile</title>
+  <title>Login | GraphQL Profile</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <h1>Hello from GitHub Pages!</h1>
-  <p id="result">Testing connection to the school server...</p>
+  <h1>Login page</h1>
+  <p>Placeholder. The login form comes in Phase 1.</p>
 
-  <script>
-    // Deliberately sends fake credentials. We expect the server to REJECT them (401).
-    // What we are testing is whether the browser is ALLOWED to talk to the server (CORS).
-    fetch("https://platform.zone01.gr/api/auth/signin", {
-      method: "POST",
-      headers: { Authorization: "Basic " + btoa("test:test") }
-    })
-      .then(res => {
-        document.getElementById("result").textContent =
-          "CORS OK. The server answered with status " + res.status + " (a 401 or similar is expected).";
-      })
-      .catch(err => {
-        document.getElementById("result").textContent =
-          "Request blocked: " + err.message + " (likely a CORS problem, see the browser console).";
-      });
-  </script>
+  <script type="module" src="js/auth.js"></script>
 </body>
 </html>

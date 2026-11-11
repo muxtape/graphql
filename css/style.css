@@ -1,0 +1,5 @@
+/* Global styles. Minimal for now; we polish in a later phase. */
+body {
+  font-family: system-ui, sans-serif;
+  margin: 2rem;
+}
