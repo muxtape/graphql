@@ -44,3 +44,18 @@ body {
 .profile-title {
   margin: 0;
 }
+
+.status-message {
+  color: #555;
+}
+
+.card {
+  border: 1px solid #ddd;
+  border-radius: 0.5rem;
+  padding: 1rem 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.card-title {
+  margin-top: 0;
+}
