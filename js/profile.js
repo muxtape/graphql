@@ -1,6 +1,8 @@
 // Fetches the data and renders the profile page.
 import { requireLogin, logout } from "./session.js";
 import { graphqlRequest } from "./graphql.js";
+import { getToken } from "./token.js";
+import { getUserId } from "./jwt.js";
 
 const app = document.getElementById("app");
 
@@ -10,7 +12,16 @@ async function start() {
     return;
   }
 
-  app.hidden = false; // token present: reveal the page
+  let userId;
+  try {
+    userId = getUserId(getToken());
+  } catch {
+    logout(); // the stored token is garbage: start over
+    return;
+  }
+
+  app.hidden = false; // token present: reveal the page  
+  console.log("User ID from token:", userId);
   
   // Temporary test, replaced in Task 2.3.
   try {
