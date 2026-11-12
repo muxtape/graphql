@@ -1,16 +1,24 @@
 // Fetches the data and renders the profile page.
 import { requireLogin, logout } from "./session.js";
+import { graphqlRequest } from "./graphql.js";
 
 const app = document.getElementById("app");
 
-function start() {
+async function start() {
   // Not logged in: requireLogin() redirects, and we stop here.
   if (!requireLogin()) {
     return;
   }
 
   app.hidden = false; // token present: reveal the page
-  // Task 2 onwards: load and render the data here.
+  
+  // Temporary test, replaced in Task 2.3.
+  try {
+    const data = await graphqlRequest("{ user { id login } }");
+    console.log("GraphQL data:", data);
+  } catch (error) {
+    console.log(`GraphQL failed (${error.kind}):`, error.message);
+  }
 }
 
 start();
