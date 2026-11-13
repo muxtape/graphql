@@ -1,1941 +1,213 @@
 # Data notes
 
-Findings from exploring the GraphQL API (tables, fields, units, surprises).
+What I learned about the school platform's GraphQL API while exploring it with GraphiQL, and the rules the profile page relies on.
 
-## List of every table i can query
+> **Privacy rule for this file:** it records **structure and rules only**. Personal values (login, user ID, XP totals, ratios, dates, row counts, tokens) stay out of the public repo. Raw exploration output lives in `docs/raw-exploration.local.md`, which is ignored by git (`*.local.md` in `.gitignore`).
 
-For the below query:
+**Legend**
+- **Verified**: observed on my own account.
+- **Inferred**: reasoned from names or patterns, not confirmed.
+- Paths look like `/<campus>/<module>/...`. `<campus>` stands for the campus name.
+
+---
+
+## 1. Endpoints and authentication
+
+| Purpose | URL |
+|---|---|
+| Sign in | `https://platform.zone01.gr/api/auth/signin` |
+| GraphQL | `https://platform.zone01.gr/api/graphql-engine/v1/graphql` |
+
+- Sign in with `POST` and `Authorization: Basic base64(identifier:password)`. The identifier can be a username or an email. The body is the JWT as plain text. (Verified)
+- Wrong credentials give **401** when nothing matches and **403** when the account exists but the password is wrong. The page treats both as "invalid credentials". (Verified)
+- GraphQL requests use `Authorization: Bearer <jwt>` and `Content-Type: application/json`. The body is `{ "query": "...", "variables": {...} }`. (Verified)
+- The JWT payload holds the user ID under the claim `https://hasura.io/jwt/claims`, key `x-hasura-user-id`, as text. Convert it to a number. (Verified)
+- Browsers on `localhost` and `github.io` are allowed to call both endpoints (CORS). (Verified)
+- GraphQL failures can arrive with HTTP 200 and an `errors` array, so check both the status and `errors`. (General GraphQL behaviour)
+
+---
+
+## 2. How to explore
+
+- **GraphiQL** (reachable from the platform when logged in): query on the left, JSON on the right, Docs panel for the schema. `Ctrl+Enter` runs, `Ctrl+Space` autocompletes.
+- **Introspection** lists what exists, so there's no need to guess names:
+
+```graphql
+# Every table that can be queried
+{ __schema { queryType { fields { name } } } }
+
+# Fields of one table (relationships show up as fields whose type is another table)
+{ __type(name: "transaction") { fields { name type { name kind ofType { name } } } } }
+
+# Official lookup tables
+{ transaction_type { type } object_type { type } }
 ```
+
+In introspection output, `kind: "NON_NULL"` with a null `ofType.name` means a **list** (a "has many" relationship).
+
+- **Fragments** avoid repeating a block:
+
+```graphql
+fragment S on transaction_aggregate { aggregate { count sum { amount } } }
 {
-  __schema {
-    queryType {
-      fields { name }
-    }
-  }
+  a: transaction_aggregate(where: { type: { _eq: "xp" } }) { ...S }
+  b: transaction_aggregate(where: { type: { _eq: "up" } }) { ...S }
 }
 ```
 
-I get:
+---
+
+## 3. Hasura query vocabulary
+
+| Argument | Meaning | Example |
+|---|---|---|
+| `where` | Filter | `where: { type: { _eq: "xp" } }` |
+| `order_by` | Sort | `order_by: { createdAt: desc }` |
+| `limit` / `offset` | Paging (always pair with `order_by`) | `limit: 10, offset: 20` |
+| `distinct_on` | One row per value (its column must be first in `order_by`) | `distinct_on: type` |
+
+- Operators: `_eq`, `_neq`, `_gt`, `_gte`, `_lt`, `_lte`, `_in`, `_like`, `_nlike`, `_ilike`, `_is_null`. Combine with `_and` / `_or`. Several fields in one `where` object mean "and".
+- `_like` patterns use `%` as a wildcard.
+- Every table `X` has `X_aggregate { aggregate { count sum{...} min{...} max{...} } }`.
+- **There is no GROUP BY.** Fetch the rows and group them in JavaScript.
+- **Aliases** (`name: table(...)`) let one request run the same table several times.
+- **Variables** keep values out of the query text:
+
+```graphql
+query ($type: String!) {
+  transaction_aggregate(where: { type: { _eq: $type } }) { aggregate { count } }
+}
 ```
+Variables pane: `{ "type": "xp" }`.
+
+The three query styles the project requires:
+
+```graphql
+{ user { id login } }                                           # normal
+{ object(where: { id: { _eq: 3323 } }) { name type } }          # with arguments
+{ transaction(limit: 5) { amount object { name type } } }       # nested
+```
+
+---
+
+## 3b. Tables worth knowing
+
+| Table | What it holds |
+|---|---|
+| `user` | The logged-in user (one row). Identity and audit totals. |
+| `transaction` | XP, audit up/down, level and skill rows. Only my own rows. |
+| `progress` | One row per attempt, with `userId`, `grade`, `isDone`, `path`. |
+| `result` | Results, including group results that have **no** `userId`. |
+| `object` | Names and types of projects, exercises, piscines and so on. |
+| `event`, `event_user` | Modules/piscines and the user's enrolment (`createdAt`, `level`). |
+| `xp_view`, `user.xps` | The XP rows again (not pre-summed). (Inferred) |
+| `audit` | Audits done and received. Not used yet. |
+| `transaction_type`, `object_type` | Lookup tables of valid types. |
+
+Ignored: `audit_private`, the `toad_*` tables, and the registration, record, role and markdown tables.
+
+**`user` fields used:** `id`, `login`, `firstName`, `lastName`, `campus`, `createdAt`, `auditRatio`, `totalUp`, `totalDown`, `totalUpBonus`. Names can be `null`, so fall back to the login.
+
+**`transaction.type` values:** `xp`, `up`, `down`, `level`, and many `skill_<name>` types.
+
+**`object.type` values (seen):** `exercise`, `project`, `piscine`, `module`, `raid`, `quest`, `exam`, `quiz`, `onboarding`, and a few others.
+
+---
+
+## 4. Rules the page relies on
+
+### XP (Verified)
+- `amount` is in **bytes**. The platform displays units of **1000** (350 B, 51.8 kB, 1.06 MB), with about 3 significant digits.
+- **Platform XP = the sum of `xp` transactions whose path is not inside a piscine.**
+
+```graphql
+where: { type: { _eq: "xp" }, path: { _nlike: "%/piscine-%/%" } }
+```
+
+- This keeps the piscine **completion** rows (path ends at the piscine folder) and projects, checkpoints and assessments, and it drops the per-exercise rows inside piscines.
+- On my account this matched the platform's total XP and its transaction count exactly.
+- It assumes piscine folders are named `piscine-...`. If that ever changes, the rule must change too.
+- A plain sum of all `xp` rows is **much larger** than the platform total and is wrong for display.
+- `isBonus` and `invalidatedAt` were never set on my XP rows, so they don't affect the total. Handle `null` anyway.
+- A path is **not unique**: checkpoint exercises repeat across sessions. Group by transaction `id`, never by path.
+
+### Level (Verified)
+- The level is the highest `amount` among `level` transactions, using the same `_nlike "%/piscine-%/%"` path filter. It matched the platform's level.
+- `event_user.level` also exists per event. (Inferred relationship)
+
+### Audit ratio (Verified)
+- `auditRatio = totalUp / totalDown`. The bonus total (`totalUpBonus`) is **not** part of it.
+- `totalUp` and `totalDown` equal the sums of the `up` and `down` transactions.
+
+### Skills (Verified, partly inferred)
+- Skill rows are `skill_<name>` transactions whose `amount` grows over time, like a running percentage. The current value is the **maximum** per type, not the sum. (Inferred, and it matched my profile's top skills.)
+
+```graphql
 {
-  "data": {
-    "__schema": {
-      "queryType": {
-        "fields": [
-          {
-            "name": "audit"
-          },
-          {
-            "name": "audit_aggregate"
-          },
-          {
-            "name": "audit_by_pk"
-          },
-          {
-            "name": "audit_private"
-          },
-          {
-            "name": "event"
-          },
-          {
-            "name": "event_aggregate"
-          },
-          {
-            "name": "event_by_pk"
-          },
-          {
-            "name": "event_user"
-          },
-          {
-            "name": "event_user_aggregate"
-          },
-          {
-            "name": "event_user_by_pk"
-          },
-          {
-            "name": "event_user_view"
-          },
-          {
-            "name": "event_user_view_aggregate"
-          },
-          {
-            "name": "group"
-          },
-          {
-            "name": "group_aggregate"
-          },
-          {
-            "name": "group_by_pk"
-          },
-          {
-            "name": "group_user"
-          },
-          {
-            "name": "group_user_aggregate"
-          },
-          {
-            "name": "group_user_by_pk"
-          },
-          {
-            "name": "label"
-          },
-          {
-            "name": "label_aggregate"
-          },
-          {
-            "name": "label_by_pk"
-          },
-          {
-            "name": "label_user"
-          },
-          {
-            "name": "label_user_aggregate"
-          },
-          {
-            "name": "label_user_by_pk"
-          },
-          {
-            "name": "latest_progress"
-          },
-          {
-            "name": "markdown"
-          },
-          {
-            "name": "markdown_by_pk"
-          },
-          {
-            "name": "match"
-          },
-          {
-            "name": "match_aggregate"
-          },
-          {
-            "name": "match_by_pk"
-          },
-          {
-            "name": "object"
-          },
-          {
-            "name": "object_aggregate"
-          },
-          {
-            "name": "object_availability"
-          },
-          {
-            "name": "object_availability_aggregate"
-          },
-          {
-            "name": "object_availability_by_pk"
-          },
-          {
-            "name": "object_by_pk"
-          },
-          {
-            "name": "object_child"
-          },
-          {
-            "name": "object_child_aggregate"
-          },
-          {
-            "name": "object_child_by_pk"
-          },
-          {
-            "name": "object_type"
-          },
-          {
-            "name": "object_type_aggregate"
-          },
-          {
-            "name": "object_type_by_pk"
-          },
-          {
-            "name": "path"
-          },
-          {
-            "name": "path_aggregate"
-          },
-          {
-            "name": "path_archive"
-          },
-          {
-            "name": "path_archive_aggregate"
-          },
-          {
-            "name": "path_archive_by_pk"
-          },
-          {
-            "name": "path_by_pk"
-          },
-          {
-            "name": "progress"
-          },
-          {
-            "name": "progress_aggregate"
-          },
-          {
-            "name": "progress_by_path_view"
-          },
-          {
-            "name": "progress_by_path_view_aggregate"
-          },
-          {
-            "name": "progress_by_pk"
-          },
-          {
-            "name": "record"
-          },
-          {
-            "name": "record_by_pk"
-          },
-          {
-            "name": "record_public_view"
-          },
-          {
-            "name": "record_public_view_aggregate"
-          },
-          {
-            "name": "record_type"
-          },
-          {
-            "name": "record_type_by_pk"
-          },
-          {
-            "name": "registration"
-          },
-          {
-            "name": "registration_aggregate"
-          },
-          {
-            "name": "registration_by_pk"
-          },
-          {
-            "name": "registration_user"
-          },
-          {
-            "name": "registration_user_aggregate"
-          },
-          {
-            "name": "registration_user_by_pk"
-          },
-          {
-            "name": "registration_user_view"
-          },
-          {
-            "name": "registration_user_view_aggregate"
-          },
-          {
-            "name": "result"
-          },
-          {
-            "name": "result_aggregate"
-          },
-          {
-            "name": "result_by_pk"
-          },
-          {
-            "name": "role"
-          },
-          {
-            "name": "role_aggregate"
-          },
-          {
-            "name": "role_by_pk"
-          },
-          {
-            "name": "task"
-          },
-          {
-            "name": "task_by_pk"
-          },
-          {
-            "name": "timing"
-          },
-          {
-            "name": "timings"
-          },
-          {
-            "name": "toad_campaign_games"
-          },
-          {
-            "name": "toad_campaign_games_aggregate"
-          },
-          {
-            "name": "toad_campaign_games_by_pk"
-          },
-          {
-            "name": "toad_campaigns"
-          },
-          {
-            "name": "toad_campaigns_by_pk"
-          },
-          {
-            "name": "toad_games"
-          },
-          {
-            "name": "toad_games_aggregate"
-          },
-          {
-            "name": "toad_games_by_pk"
-          },
-          {
-            "name": "toad_session_game_results"
-          },
-          {
-            "name": "toad_session_game_results_by_pk"
-          },
-          {
-            "name": "toad_session_games"
-          },
-          {
-            "name": "toad_session_games_aggregate"
-          },
-          {
-            "name": "toad_session_games_by_pk"
-          },
-          {
-            "name": "toad_sessions"
-          },
-          {
-            "name": "toad_sessions_aggregate"
-          },
-          {
-            "name": "toad_sessions_by_pk"
-          },
-          {
-            "name": "transaction"
-          },
-          {
-            "name": "transaction_aggregate"
-          },
-          {
-            "name": "transaction_by_pk"
-          },
-          {
-            "name": "transaction_type"
-          },
-          {
-            "name": "transaction_type_aggregate"
-          },
-          {
-            "name": "transaction_type_by_pk"
-          },
-          {
-            "name": "user"
-          },
-          {
-            "name": "user_aggregate"
-          },
-          {
-            "name": "user_by_pk"
-          },
-          {
-            "name": "user_public_view"
-          },
-          {
-            "name": "user_role"
-          },
-          {
-            "name": "user_role_aggregate"
-          },
-          {
-            "name": "user_role_by_pk"
-          },
-          {
-            "name": "user_roles_view"
-          },
-          {
-            "name": "user_roles_view_aggregate"
-          },
-          {
-            "name": "xp_view"
-          }
-        ]
-      }
-    }
-  }
+  transaction(
+    where: { type: { _like: "skill_%" } }
+    distinct_on: type
+    order_by: [{ type: asc }, { amount: desc }]
+  ) { type amount }
 }
 ```
 
-# Some table's fields and their types
+### Results, progress and pass/fail (Verified, meanings partly inferred)
+- **Group results have `userId: null`** and are linked by `groupId`. `user.results` and `where: { userId: ... }` would **silently drop them**. Use `progress` (which carries `userId`) for project pass/fail.
+- Every submission creates a row in both `progress` and `result`. Repeated attempts show as several rows with the same path: grade `0` is a fail, `1` is a pass.
+- `result.type` values seen: `tester`, `user_audit`, `admin_audit`, `admin_selection`. Their meanings are inferred from the names: automatic tests, peer-audited projects, raids, and final selection grades.
+- A passed project has grade **1.2**. A failed attempt is below 1. Working rule: **`grade >= 1` means pass**.
+- Exam grades are fractions of the exercises solved.
+- `result.isLast` is **not reliable** (many attempts showed `true`). Don't use it.
+- `result` can contain a row for something I never started. For anything related to XP, prefer `transaction` over `result`.
 
-For :
-```
+### Dates (Verified)
+- `createdAt` is ISO 8601 with a timezone (`+00:00`). The platform shows **local time**, so group by month in local time to match it.
+
+### Row limits (Verified at small scale)
+- No cap was observed at a few hundred rows. Method: fetch everything with `order_by: { id: asc }` and compare the last `id` with `order_by: { id: desc }, limit: 1`. If they differ, the server truncated the list. Re-check if an account grows into the thousands.
+- `transaction` ids are sparse because they're shared across the whole table.
+
+---
+
+## 5. Query recipes for the app
+
+```graphql
+# Identity and audit totals (normal)
+{ user { id login firstName lastName campus createdAt auditRatio totalUp totalDown } }
+
+# All counted XP rows, with the nested object name and type (nested + arguments)
 {
-  __type(name: "user") {
-    fields {
-      name
-      type { name kind ofType { name } }
-    }
-  }
+  transaction(
+    where: { type: { _eq: "xp" }, path: { _nlike: "%/piscine-%/%" } }
+    order_by: { createdAt: asc }
+  ) { id amount createdAt path object { name type } }
+}
+
+# Current level
+{
+  transaction(
+    where: { type: { _eq: "level" }, path: { _nlike: "%/piscine-%/%" } }
+    order_by: { amount: desc }
+    limit: 1
+  ) { amount path }
 }
 ```
 
-I get :
-```
-{
-  "data": {
-    "__type": {
-      "fields": [
-        {
-          "name": "attrs",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "jsonb"
-            }
-          }
-        },
-        {
-          "name": "auditRatio",
-          "type": {
-            "name": "float8",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "audits",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": null
-            }
-          }
-        },
-        {
-          "name": "auditsAssigned",
-          "type": {
-            "name": "numeric",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "audits_aggregate",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "audit_aggregate"
-            }
-          }
-        },
-        {
-          "name": "avatarUrl",
-          "type": {
-            "name": "String",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "campus",
-          "type": {
-            "name": "String",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "createdAt",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "timestamptz"
-            }
-          }
-        },
-        {
-          "name": "discordId",
-          "type": {
-            "name": "String",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "discordLogin",
-          "type": {
-            "name": "String",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "email",
-          "type": {
-            "name": "String",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "events",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": null
-            }
-          }
-        },
-        {
-          "name": "events_aggregate",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "event_user_aggregate"
-            }
-          }
-        },
-        {
-          "name": "firstName",
-          "type": {
-            "name": "String",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "githubId",
-          "type": {
-            "name": "Int",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "groups",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": null
-            }
-          }
-        },
-        {
-          "name": "groupsByCaptainid",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": null
-            }
-          }
-        },
-        {
-          "name": "groupsByCaptainid_aggregate",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "group_aggregate"
-            }
-          }
-        },
-        {
-          "name": "groups_aggregate",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "group_user_aggregate"
-            }
-          }
-        },
-        {
-          "name": "id",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "Int"
-            }
-          }
-        },
-        {
-          "name": "labels",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": null
-            }
-          }
-        },
-        {
-          "name": "labels_aggregate",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "label_user_aggregate"
-            }
-          }
-        },
-        {
-          "name": "lastName",
-          "type": {
-            "name": "String",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "login",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "String"
-            }
-          }
-        },
-        {
-          "name": "markdowns",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": null
-            }
-          }
-        },
-        {
-          "name": "matches",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": null
-            }
-          }
-        },
-        {
-          "name": "matches_aggregate",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "match_aggregate"
-            }
-          }
-        },
-        {
-          "name": "objectAvailabilities",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": null
-            }
-          }
-        },
-        {
-          "name": "objectAvailabilities_aggregate",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "object_availability_aggregate"
-            }
-          }
-        },
-        {
-          "name": "objects",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": null
-            }
-          }
-        },
-        {
-          "name": "objects_aggregate",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "object_aggregate"
-            }
-          }
-        },
-        {
-          "name": "profile",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "jsonb"
-            }
-          }
-        },
-        {
-          "name": "progresses",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": null
-            }
-          }
-        },
-        {
-          "name": "progressesByPath",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": null
-            }
-          }
-        },
-        {
-          "name": "progressesByPath_aggregate",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "progress_by_path_view_aggregate"
-            }
-          }
-        },
-        {
-          "name": "progresses_aggregate",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "progress_aggregate"
-            }
-          }
-        },
-        {
-          "name": "public",
-          "type": {
-            "name": "user_public_view",
-            "kind": "OBJECT",
-            "ofType": null
-          }
-        },
-        {
-          "name": "records",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": null
-            }
-          }
-        },
-        {
-          "name": "recordsByAuthorid",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": null
-            }
-          }
-        },
-        {
-          "name": "registrations",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": null
-            }
-          }
-        },
-        {
-          "name": "registrations_aggregate",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "registration_user_aggregate"
-            }
-          }
-        },
-        {
-          "name": "results",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": null
-            }
-          }
-        },
-        {
-          "name": "results_aggregate",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "result_aggregate"
-            }
-          }
-        },
-        {
-          "name": "roles",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": null
-            }
-          }
-        },
-        {
-          "name": "roles_aggregate",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "user_roles_view_aggregate"
-            }
-          }
-        },
-        {
-          "name": "sessions",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": null
-            }
-          }
-        },
-        {
-          "name": "sessions_aggregate",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "toad_sessions_aggregate"
-            }
-          }
-        },
-        {
-          "name": "totalDown",
-          "type": {
-            "name": "numeric",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "totalUp",
-          "type": {
-            "name": "numeric",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "totalUpBonus",
-          "type": {
-            "name": "numeric",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "transactions",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": null
-            }
-          }
-        },
-        {
-          "name": "transactions_aggregate",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "transaction_aggregate"
-            }
-          }
-        },
-        {
-          "name": "updatedAt",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "timestamptz"
-            }
-          }
-        },
-        {
-          "name": "user_roles",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": null
-            }
-          }
-        },
-        {
-          "name": "user_roles_aggregate",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "user_role_aggregate"
-            }
-          }
-        },
-        {
-          "name": "xps",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": null
-            }
-          }
-        }
-      ]
-    }
-  }
-}
-```
+---
 
-For :
-```
-{
-  __type(name: "transaction") {
-    fields {
-      name
-      type { name kind ofType { name } }
-    }
-  }
-}
-```
+## 6. Open questions
 
-I get:
-```
-{
-  "data": {
-    "__type": {
-      "fields": [
-        {
-          "name": "amount",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "numeric"
-            }
-          }
-        },
-        {
-          "name": "attrs",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "jsonb"
-            }
-          }
-        },
-        {
-          "name": "auditId",
-          "type": {
-            "name": "Int",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "campus",
-          "type": {
-            "name": "String",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "createdAt",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "timestamptz"
-            }
-          }
-        },
-        {
-          "name": "event",
-          "type": {
-            "name": "event",
-            "kind": "OBJECT",
-            "ofType": null
-          }
-        },
-        {
-          "name": "eventId",
-          "type": {
-            "name": "Int",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "id",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "Int"
-            }
-          }
-        },
-        {
-          "name": "invalidatedAt",
-          "type": {
-            "name": "timestamptz",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "invalidationReason",
-          "type": {
-            "name": "String",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "isBonus",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "Boolean"
-            }
-          }
-        },
-        {
-          "name": "object",
-          "type": {
-            "name": "object",
-            "kind": "OBJECT",
-            "ofType": null
-          }
-        },
-        {
-          "name": "objectId",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "Int"
-            }
-          }
-        },
-        {
-          "name": "originEvent",
-          "type": {
-            "name": "event",
-            "kind": "OBJECT",
-            "ofType": null
-          }
-        },
-        {
-          "name": "originEventId",
-          "type": {
-            "name": "Int",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "path",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "String"
-            }
-          }
-        },
-        {
-          "name": "pathByPath",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "path"
-            }
-          }
-        },
-        {
-          "name": "progress",
-          "type": {
-            "name": "progress",
-            "kind": "OBJECT",
-            "ofType": null
-          }
-        },
-        {
-          "name": "transaction_type",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "transaction_type"
-            }
-          }
-        },
-        {
-          "name": "type",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "String"
-            }
-          }
-        },
-        {
-          "name": "user",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "user"
-            }
-          }
-        },
-        {
-          "name": "userId",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "Int"
-            }
-          }
-        },
-        {
-          "name": "userLogin",
-          "type": {
-            "name": "String",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        }
-      ]
-    }
-  }
-}
-```
+- **Program start date.** `user.createdAt` is the account registration date, not the start of the main program. Candidate: the enrolment date of the main module event (`user.events { createdAt event { path startAt object { type } } }`). Not settled yet.
+- Why a passed project is graded 1.2 and not 1.
+- What the `null`-grade row on an exam path means (probably a placeholder before final grading).
+- What `isBonus` means in practice.
+- Whether skill amounts are capped at 100.
 
-For :
-```
-{
-  __type(name: "progress") {
-    fields {
-      name
-      type { name kind ofType { name } }
-    }
-  }
-}
-```
+---
 
-I get:
-```
-{
-  "data": {
-    "__type": {
-      "fields": [
-        {
-          "name": "campus",
-          "type": {
-            "name": "String",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "createdAt",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "timestamptz"
-            }
-          }
-        },
-        {
-          "name": "event",
-          "type": {
-            "name": "event",
-            "kind": "OBJECT",
-            "ofType": null
-          }
-        },
-        {
-          "name": "eventId",
-          "type": {
-            "name": "Int",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "grade",
-          "type": {
-            "name": "numeric",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "gradedAt",
-          "type": {
-            "name": "timestamptz",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "group",
-          "type": {
-            "name": "group",
-            "kind": "OBJECT",
-            "ofType": null
-          }
-        },
-        {
-          "name": "groupId",
-          "type": {
-            "name": "Int",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "id",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "bigint"
-            }
-          }
-        },
-        {
-          "name": "isDone",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "Boolean"
-            }
-          }
-        },
-        {
-          "name": "object",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "object"
-            }
-          }
-        },
-        {
-          "name": "objectId",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "Int"
-            }
-          }
-        },
-        {
-          "name": "path",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "String"
-            }
-          }
-        },
-        {
-          "name": "pathByPath",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "path"
-            }
-          }
-        },
-        {
-          "name": "results",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": null
-            }
-          }
-        },
-        {
-          "name": "results_aggregate",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "result_aggregate"
-            }
-          }
-        },
-        {
-          "name": "updatedAt",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "timestamptz"
-            }
-          }
-        },
-        {
-          "name": "user",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "user"
-            }
-          }
-        },
-        {
-          "name": "userId",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "Int"
-            }
-          }
-        },
-        {
-          "name": "userLogin",
-          "type": {
-            "name": "String",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "version",
-          "type": {
-            "name": "String",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        }
-      ]
-    }
-  }
-}
-```
+## 7. Decisions
 
-For :
-```
-{
-  __type(name: "result") {
-    fields {
-      name
-      type { name kind ofType { name } }
-    }
-  }
-}
-```
-
-I get:
-```
-{
-  "data": {
-    "__type": {
-      "fields": [
-        {
-          "name": "attrs",
-          "type": {
-            "name": "jsonb",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "audits",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": null
-            }
-          }
-        },
-        {
-          "name": "audits_aggregate",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "audit_aggregate"
-            }
-          }
-        },
-        {
-          "name": "campus",
-          "type": {
-            "name": "String",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "createdAt",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "timestamptz"
-            }
-          }
-        },
-        {
-          "name": "event",
-          "type": {
-            "name": "event",
-            "kind": "OBJECT",
-            "ofType": null
-          }
-        },
-        {
-          "name": "eventId",
-          "type": {
-            "name": "Int",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "grade",
-          "type": {
-            "name": "numeric",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "gradedAt",
-          "type": {
-            "name": "timestamptz",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "group",
-          "type": {
-            "name": "group",
-            "kind": "OBJECT",
-            "ofType": null
-          }
-        },
-        {
-          "name": "groupId",
-          "type": {
-            "name": "Int",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "id",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "Int"
-            }
-          }
-        },
-        {
-          "name": "invalidatedAt",
-          "type": {
-            "name": "timestamptz",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "invalidationReason",
-          "type": {
-            "name": "String",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "isLast",
-          "type": {
-            "name": "Boolean",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "object",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "object"
-            }
-          }
-        },
-        {
-          "name": "objectId",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "Int"
-            }
-          }
-        },
-        {
-          "name": "path",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "String"
-            }
-          }
-        },
-        {
-          "name": "pathByPath",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "path"
-            }
-          }
-        },
-        {
-          "name": "type",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "String"
-            }
-          }
-        },
-        {
-          "name": "updatedAt",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "timestamptz"
-            }
-          }
-        },
-        {
-          "name": "user",
-          "type": {
-            "name": "user",
-            "kind": "OBJECT",
-            "ofType": null
-          }
-        },
-        {
-          "name": "userId",
-          "type": {
-            "name": "Int",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "userLogin",
-          "type": {
-            "name": "String",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "version",
-          "type": {
-            "name": "String",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        }
-      ]
-    }
-  }
-}
-```
-
-For :
-```
-{
-  __type(name: "object") {
-    fields {
-      name
-      type { name kind ofType { name } }
-    }
-  }
-}
-```
-
-I get:
-```
-{
-  "data": {
-    "__type": {
-      "fields": [
-        {
-          "name": "attrs",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "jsonb"
-            }
-          }
-        },
-        {
-          "name": "author",
-          "type": {
-            "name": "user",
-            "kind": "OBJECT",
-            "ofType": null
-          }
-        },
-        {
-          "name": "authorId",
-          "type": {
-            "name": "Int",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "campus",
-          "type": {
-            "name": "String",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "childrenRelation",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": null
-            }
-          }
-        },
-        {
-          "name": "childrenRelation_aggregate",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "object_child_aggregate"
-            }
-          }
-        },
-        {
-          "name": "createdAt",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "timestamptz"
-            }
-          }
-        },
-        {
-          "name": "events",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": null
-            }
-          }
-        },
-        {
-          "name": "events_aggregate",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "event_aggregate"
-            }
-          }
-        },
-        {
-          "name": "groups",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": null
-            }
-          }
-        },
-        {
-          "name": "groups_aggregate",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "group_aggregate"
-            }
-          }
-        },
-        {
-          "name": "id",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "Int"
-            }
-          }
-        },
-        {
-          "name": "matches",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": null
-            }
-          }
-        },
-        {
-          "name": "matches_aggregate",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "match_aggregate"
-            }
-          }
-        },
-        {
-          "name": "name",
-          "type": {
-            "name": "String",
-            "kind": "SCALAR",
-            "ofType": null
-          }
-        },
-        {
-          "name": "object_type",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "object_type"
-            }
-          }
-        },
-        {
-          "name": "objects",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": null
-            }
-          }
-        },
-        {
-          "name": "objects_aggregate",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "object_aggregate"
-            }
-          }
-        },
-        {
-          "name": "parents",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": null
-            }
-          }
-        },
-        {
-          "name": "parents_aggregate",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "object_child_aggregate"
-            }
-          }
-        },
-        {
-          "name": "paths",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": null
-            }
-          }
-        },
-        {
-          "name": "paths_aggregate",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "path_aggregate"
-            }
-          }
-        },
-        {
-          "name": "progresses",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": null
-            }
-          }
-        },
-        {
-          "name": "progresses_aggregate",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "progress_aggregate"
-            }
-          }
-        },
-        {
-          "name": "reference",
-          "type": {
-            "name": "object",
-            "kind": "OBJECT",
-            "ofType": null
-          }
-        },
-        {
-          "name": "registrations",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": null
-            }
-          }
-        },
-        {
-          "name": "registrations_aggregate",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "registration_aggregate"
-            }
-          }
-        },
-        {
-          "name": "results",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": null
-            }
-          }
-        },
-        {
-          "name": "results_aggregate",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "result_aggregate"
-            }
-          }
-        },
-        {
-          "name": "tasks",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": null
-            }
-          }
-        },
-        {
-          "name": "type",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "String"
-            }
-          }
-        },
-        {
-          "name": "updatedAt",
-          "type": {
-            "name": null,
-            "kind": "NON_NULL",
-            "ofType": {
-              "name": "timestamptz"
-            }
-          }
-        }
-      ]
-    }
-  }
-}
-```
+- **Profile sections:** welcome header, level + XP + audit ratio card, identity card (login, campus, start date), top 5 skills.
+- **Graphs:** cumulative XP over time (animated line), XP per month (animated bars, split between piscine completion and everything else), plus optional skills bars and audit up/down bars.
+- **Query styles covered:** normal (identity), arguments (XP, level, skills), nested (XP rows with `object { ... }`).
