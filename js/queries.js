@@ -63,3 +63,22 @@ export const STATS_QUERY = `
     }
   }
 `;
+
+// Skill transactions have the type "skill_<name>".
+// (In a LIKE pattern "_" matches any one character; harmless here.)
+export const SKILL_PATTERN = "skill_%";
+
+// One row per skill type, keeping the highest amount (the current level of that skill).
+// distinct_on requires its column to come first in order_by.
+export const SKILLS_QUERY = `
+  query ($userId: Int!, $skillPattern: String!) {
+    transaction(
+      where: { userId: { _eq: $userId }, type: { _like: $skillPattern } }
+      distinct_on: type
+      order_by: [{ type: asc }, { amount: desc }]
+    ) {
+      type
+      amount
+    }
+  }
+`;

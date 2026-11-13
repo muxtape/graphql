@@ -3,8 +3,16 @@ import { requireLogin, logout } from "./session.js";
 import { graphqlRequest } from "./graphql.js";
 import { getToken } from "./token.js";
 import { getUserId } from "./jwt.js";
-import { USER_QUERY, STATS_QUERY, NOT_PISCINE_PATH } from "./queries.js";
-import { formatDate, formatBytes, formatRatio } from "./format.js";
+import {
+  USER_QUERY,
+  STATS_QUERY,
+  SKILLS_QUERY,
+  NOT_PISCINE_PATH,
+  SKILL_PATTERN,
+} from "./queries.js";
+import { formatDate, formatBytes, formatRatio, formatSkillName } from "./format.js";
+
+const TOP_SKILLS_COUNT = 5;
 
 const app = document.getElementById("app");
 const statusMessage = document.getElementById("status-message");
@@ -52,6 +60,21 @@ async function loadStats(userId) {
   };
 }
 
+// Returns the best skills as [{ name, amount }], highest first.
+async function loadTopSkills(userId) {
+  const data = await graphqlRequest(SKILLS_QUERY, {
+    userId,
+    skillPattern: SKILL_PATTERN,
+  });
+
+  return data.transaction
+    .map((row) => ({ name: formatSkillName(row.type), amount: Number(row.amount) }))
+    .filter((skill) => Number.isFinite(skill.amount))
+    // Highest first; ties are ordered by name so the list never jumps around.
+    .sort((a, b) => b.amount - a.amount || a.name.localeCompare(b.name))
+    .slice(0, TOP_SKILLS_COUNT);
+}
+
 // ----- Rendering (puts data on the page) -----
 
 // First and last name when available, otherwise the login.
@@ -78,6 +101,34 @@ function renderStats(stats) {
   document.getElementById("audit-down").textContent = formatBytes(stats.down);
 }
 
+function renderSkills(skills) {
+  const list = document.getElementById("skills-list");
+  list.replaceChildren(); // remove anything rendered before
+  document.getElementById("skills-empty").hidden = skills.length > 0;
+
+  for (const skill of skills) {
+    const item = document.createElement("li");
+    item.className = "skill";
+
+    const name = document.createElement("span");
+    name.className = "skill-name";
+    name.textContent = skill.name;
+
+    const bar = document.createElement("progress");
+    bar.className = "skill-bar";
+    bar.max = 100;
+    bar.value = skill.amount;
+    bar.setAttribute("aria-label", `${skill.name} skill level`);
+
+    const value = document.createElement("span");
+    value.className = "skill-value";
+    value.textContent = `${skill.amount}%`;
+
+    item.append(name, bar, value);
+    list.append(item);
+  }
+}
+
 // ----- Page startup -----
 
 async function start() {
@@ -98,11 +149,16 @@ async function start() {
   showStatus("Loading your data...");
 
   try {
-    // The two requests don't depend on each other: send both at once.
-    const [user, stats] = await Promise.all([loadUser(), loadStats(userId)]);
+    // The requests don't depend on each other: send them all at once.
+    const [user, stats, skills] = await Promise.all([
+      loadUser(),
+      loadStats(userId),
+      loadTopSkills(userId),
+    ]);
 
     renderUser(user);
     renderStats(stats);
+    renderSkills(skills);
     dashboard.hidden = false;
     hideStatus();
   } catch (error) {

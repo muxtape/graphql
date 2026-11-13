@@ -59,3 +59,23 @@ export function formatRatio(ratio) {
   const number = Number(ratio);
   return Number.isFinite(number) ? number.toFixed(1) : "—";
 }
+
+const SKILL_PREFIX = "skill_";
+const SKILL_ACRONYMS = new Set([
+  "js", "sql", "css", "html", "tcp", "ai", "ml", "llm", "rag",
+  "nlp", "mlops", "cv", "ci", "ga", "php", "sh", "c",
+]);
+const SKILL_OVERRIDES = { "c-pp": "C++", "c-sharp": "C#", dotnet: ".NET", "no-sql": "NoSQL" };
+
+// "skill_front-end" -> "Front-end", "skill_js" -> "JS", "skill_c-pp" -> "C++".
+// Unknown names are simply capitalised.
+export function formatSkillName(type) {
+  const key = type.startsWith(SKILL_PREFIX) ? type.slice(SKILL_PREFIX.length) : type;
+  if (SKILL_OVERRIDES[key]) {
+    return SKILL_OVERRIDES[key];
+  }
+  if (SKILL_ACRONYMS.has(key)) {
+    return key.toUpperCase();
+  }
+  return key.charAt(0).toUpperCase() + key.slice(1);
+}
