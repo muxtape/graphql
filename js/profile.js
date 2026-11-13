@@ -3,8 +3,8 @@ import { requireLogin, logout } from "./session.js";
 import { graphqlRequest } from "./graphql.js";
 import { getToken } from "./token.js";
 import { getUserId } from "./jwt.js";
-import { USER_QUERY } from "./queries.js";
-import { formatDate } from "./format.js";
+import { USER_QUERY, STATS_QUERY, NOT_PISCINE_PATH } from "./queries.js";
+import { formatDate, formatBytes, formatRatio } from "./format.js";
 
 const app = document.getElementById("app");
 const statusMessage = document.getElementById("status-message");
@@ -35,6 +35,23 @@ async function loadUser() {
   return data.user[0]; // the "user" table returns an array with just you
 }
 
+// Returns plain values ready for display: level, xp, auditRatio, up, down.
+async function loadStats(userId) {
+  const data = await graphqlRequest(STATS_QUERY, {
+    userId,
+    notPiscine: NOT_PISCINE_PATH,
+  });
+  const me = data.user[0];
+
+  return {
+    level: data.level[0]?.amount ?? null,            // no level row yet -> null
+    xp: data.xp.aggregate.sum?.amount ?? 0,          // no XP rows -> sum is null
+    auditRatio: me.auditRatio,
+    up: me.totalUp,
+    down: me.totalDown,
+  };
+}
+
 // ----- Rendering (puts data on the page) -----
 
 // First and last name when available, otherwise the login.
@@ -43,7 +60,7 @@ function displayName(user) {
   return fullName || user.login;
 }
 
-function renderUser(user) {  
+function renderUser(user) {
   document.getElementById("welcome").textContent = `Welcome, ${displayName(user)}`;
   document.getElementById("user-login").textContent = user.login;
   document.getElementById("user-campus").textContent = user.campus ?? "—";
@@ -51,8 +68,14 @@ function renderUser(user) {
   // The earliest module enrolment, if there is one yet.
   const mainModule = user.events[0];
   document.getElementById("user-started").textContent = formatDate(mainModule?.event?.startAt);
+}
 
-  dashboard.hidden = false;
+function renderStats(stats) {
+  document.getElementById("stat-level").textContent = stats.level ?? "—";
+  document.getElementById("stat-xp").textContent = formatBytes(stats.xp);
+  document.getElementById("stat-audit").textContent = formatRatio(stats.auditRatio);
+  document.getElementById("audit-up").textContent = formatBytes(stats.up);
+  document.getElementById("audit-down").textContent = formatBytes(stats.down);
 }
 
 // ----- Page startup -----
@@ -65,7 +88,7 @@ async function start() {
   // A token we cannot decode is garbage: start over.
   let userId;
   try {
-    userId = getUserId(getToken()); // will be used by later queries
+    userId = getUserId(getToken());
   } catch {
     logout();
     return;
@@ -75,8 +98,12 @@ async function start() {
   showStatus("Loading your data...");
 
   try {
-    const user = await loadUser();
+    // The two requests don't depend on each other: send both at once.
+    const [user, stats] = await Promise.all([loadUser(), loadStats(userId)]);
+
     renderUser(user);
+    renderStats(stats);
+    dashboard.hidden = false;
     hideStatus();
   } catch (error) {
     if (error.kind === "auth") {

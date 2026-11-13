@@ -19,6 +19,18 @@
       <div id="dashboard" hidden>
         <h2 id="welcome" class="welcome"></h2>
 
+        <section id="stats" class="card" aria-labelledby="stats-title">
+          <h3 id="stats-title" class="card-title">Progress</h3>
+          <dl class="stat-grid">
+            <div class="stat"><dt>Level</dt><dd id="stat-level"></dd></div>
+            <div class="stat"><dt>Total XP</dt><dd id="stat-xp"></dd></div>
+            <div class="stat"><dt>Audit ratio</dt><dd id="stat-audit"></dd></div>
+          </dl>
+          <p class="stat-note">
+            Audits done <span id="audit-up"></span> · received <span id="audit-down"></span>
+          </p>
+        </section>
+
         <section id="identity" class="card" aria-labelledby="identity-title">
           <h3 id="identity-title" class="card-title">Identity</h3>
           <dl class="info-list">

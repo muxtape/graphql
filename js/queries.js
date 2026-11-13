@@ -25,3 +25,41 @@ export const USER_QUERY = `
     }
   }
 `;
+
+// Paths INSIDE a piscine (e.g. "/campus/piscine-go/quest-01/x") don't count towards
+// the platform's XP or level. The rows for the piscine itself do. See docs/data-notes.md.
+export const NOT_PISCINE_PATH = "%/piscine-%/%";
+
+// Audit totals, platform XP and current level in a single request.
+// Variables: $userId (Int), $notPiscine (String, a LIKE pattern).
+export const STATS_QUERY = `
+  query ($userId: Int!, $notPiscine: String!) {
+    user {
+      auditRatio
+      totalUp
+      totalDown
+    }
+    xp: transaction_aggregate(
+      where: {
+        userId: { _eq: $userId }
+        type: { _eq: "xp" }
+        path: { _nlike: $notPiscine }
+      }
+    ) {
+      aggregate {
+        sum { amount }
+      }
+    }
+    level: transaction(
+      where: {
+        userId: { _eq: $userId }
+        type: { _eq: "level" }
+        path: { _nlike: $notPiscine }
+      }
+      order_by: { amount: desc }
+      limit: 1
+    ) {
+      amount
+    }
+  }
+`;
