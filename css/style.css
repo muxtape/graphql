@@ -93,3 +93,26 @@ body {
 #user-campus {
   text-transform: capitalize;
 }
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: 1rem;
+  margin: 0;
+}
+
+.stat dt {
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.stat dd {
+  margin: 0.25rem 0 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.stat-note {
+  color: #555;
+  margin: 1rem 0 0;
+}
