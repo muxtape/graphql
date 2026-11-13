@@ -151,6 +151,8 @@ where: { type: { _eq: "xp" }, path: { _nlike: "%/piscine-%/%" } }
   ) { type amount }
 }
 ```
+- Hasura can return one row per type (`distinct_on`) but cannot take the top N of those rows: sort and slice in JavaScript.
+- In `_like` patterns, `_` matches any single character, so `skill_%` also matches e.g. `skillX...`. Harmless here, since every skill type starts with `skill_`.
 
 ### Results, progress and pass/fail (Verified, meanings partly inferred)
 - **Group results have `userId: null`** and are linked by `groupId`. `user.results` and `where: { userId: ... }` would **silently drop them**. Use `progress` (which carries `userId`) for project pass/fail.
@@ -210,6 +212,7 @@ where: { type: { _eq: "xp" }, path: { _nlike: "%/piscine-%/%" } }
 - Whether skill amounts are capped at 100.
 - What the platform shows for XP and level while a student is still in a piscine (the path filter excludes everything inside piscines, so the page shows 0 and a dash).
 - Rounding the platform uses for the audit ratio.
+- Whether the platform displays skill values as percentages.
 
 ---
 
