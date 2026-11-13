@@ -168,6 +168,12 @@ where: { type: { _eq: "xp" }, path: { _nlike: "%/piscine-%/%" } }
 - No cap was observed at a few hundred rows. Method: fetch everything with `order_by: { id: asc }` and compare the last `id` with `order_by: { id: desc }, limit: 1`. If they differ, the server truncated the list. Re-check if an account grows into the thousands.
 - `transaction` ids are sparse because they're shared across the whole table.
 
+### Program start (Verified)
+- `user.createdAt` is the account registration date, not the start of the program.
+- The main module is the event whose `object.type` is `"module"`. Its start is `event.startAt` of the earliest matching enrolment in `user.events` (enrolment itself is `createdAt` on that row).
+- `event.endAt` on the module is a far-future placeholder: don't display or use it.
+- A student still in a piscine has no module enrolment yet: show a dash.
+
 ---
 
 ## 5. Query recipes for the app
@@ -198,7 +204,6 @@ where: { type: { _eq: "xp" }, path: { _nlike: "%/piscine-%/%" } }
 
 ## 6. Open questions
 
-- **Program start date.** `user.createdAt` is the account registration date, not the start of the main program. Candidate: the enrolment date of the main module event (`user.events { createdAt event { path startAt object { type } } }`). Not settled yet.
 - Why a passed project is graded 1.2 and not 1.
 - What the `null`-grade row on an exam path means (probably a placeholder before final grading).
 - What `isBonus` means in practice.
