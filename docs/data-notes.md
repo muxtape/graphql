@@ -208,6 +208,8 @@ where: { type: { _eq: "xp" }, path: { _nlike: "%/piscine-%/%" } }
 - What the `null`-grade row on an exam path means (probably a placeholder before final grading).
 - What `isBonus` means in practice.
 - Whether skill amounts are capped at 100.
+- What the platform shows for XP and level while a student is still in a piscine (the path filter excludes everything inside piscines, so the page shows 0 and a dash).
+- Rounding the platform uses for the audit ratio.
 
 ---
 
