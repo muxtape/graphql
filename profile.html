@@ -16,10 +16,18 @@
     <main class="profile-content">
       <p id="status-message" class="status-message" role="status">Loading your data...</p>
 
-      <section id="identity" class="card" hidden>
-        <h2 class="card-title">Welcome, <span id="user-login"></span></h2>
-        <p>User ID: <span id="user-id"></span></p>
-      </section>
+      <div id="dashboard" hidden>
+        <h2 id="welcome" class="welcome"></h2>
+
+        <section id="identity" class="card" aria-labelledby="identity-title">
+          <h3 id="identity-title" class="card-title">Identity</h3>
+          <dl class="info-list">
+            <div class="info-row"><dt>Login</dt><dd id="user-login"></dd></div>
+            <div class="info-row"><dt>Campus</dt><dd id="user-campus"></dd></div>
+            <div class="info-row"><dt>Started</dt><dd id="user-started"></dd></div>
+          </dl>
+        </section>
+      </div>
     </main>
   </div>
 

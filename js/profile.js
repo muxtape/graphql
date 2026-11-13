@@ -4,10 +4,11 @@ import { graphqlRequest } from "./graphql.js";
 import { getToken } from "./token.js";
 import { getUserId } from "./jwt.js";
 import { USER_QUERY } from "./queries.js";
+import { formatDate } from "./format.js";
 
 const app = document.getElementById("app");
 const statusMessage = document.getElementById("status-message");
-const identitySection = document.getElementById("identity");
+const dashboard = document.getElementById("dashboard");
 
 // What the user sees when loading fails. ("auth" is not listed: the
 // graphqlRequest helper already logs the user out and redirects.)
@@ -36,10 +37,22 @@ async function loadUser() {
 
 // ----- Rendering (puts data on the page) -----
 
-function renderUser(user) {
+// First and last name when available, otherwise the login.
+function displayName(user) {
+  const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
+  return fullName || user.login;
+}
+
+function renderUser(user) {  
+  document.getElementById("welcome").textContent = `Welcome, ${displayName(user)}`;
   document.getElementById("user-login").textContent = user.login;
-  document.getElementById("user-id").textContent = user.id;
-  identitySection.hidden = false;
+  document.getElementById("user-campus").textContent = user.campus ?? "—";
+
+  // The earliest module enrolment, if there is one yet.
+  const mainModule = user.events[0];
+  document.getElementById("user-started").textContent = formatDate(mainModule?.event?.startAt);
+
+  dashboard.hidden = false;
 }
 
 // ----- Page startup -----
