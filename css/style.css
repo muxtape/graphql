@@ -59,3 +59,37 @@ body {
 .card-title {
   margin-top: 0;
 }
+
+.welcome {
+  margin-top: 0;
+}
+
+.info-list {
+  margin: 0;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid #eee;
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-row dt {
+  color: #555;
+}
+
+.info-row dd {
+  margin: 0;
+  font-weight: 600;
+  text-align: right;
+}
+
+#user-campus {
+  text-transform: capitalize;
+}
