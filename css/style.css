@@ -149,8 +149,15 @@ body {
 }
 
 .chart-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   font-weight: 600;
   margin-bottom: 0.5rem;
+}
+
+.chart-replay {
+  font-weight: 400;
 }
 
 .chart-frame {
@@ -247,4 +254,49 @@ body {
 .chart-tooltip-title {
   font-weight: 600;
   overflow-wrap: anywhere;
+}
+
+/* Draw-in animation. The JS adds "is-animating" (held paused) and later "is-playing". */
+.chart-frame.is-animating .chart-line {
+  stroke-linecap: butt;
+  stroke-dasharray: var(--length);
+  stroke-dashoffset: var(--length);
+  animation: chart-draw var(--duration) linear forwards paused;
+}
+
+.chart-frame.is-animating .chart-dot {
+  opacity: 0;
+  animation: chart-dot-in 0.25s ease-out forwards paused;
+  animation-delay: var(--delay);
+}
+
+.chart-frame.is-playing .chart-line,
+.chart-frame.is-playing .chart-dot {
+  animation-play-state: running;
+}
+
+@keyframes chart-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes chart-dot-in {
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chart-frame.is-animating .chart-line,
+  .chart-frame.is-animating .chart-dot {
+    animation: none;
+    opacity: 1;
+    stroke-dasharray: none;
+    stroke-dashoffset: 0;
+  }
+
+  .chart-replay {
+    display: none;
+  }
 }
