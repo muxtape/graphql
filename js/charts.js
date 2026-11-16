@@ -71,16 +71,7 @@ export function renderXpLineChart(container, series) {
     `to ${formatBytes(last.total)} on ${dayLabel.format(last.date)}. ` +
     "Use the arrow keys to browse the transactions.";
 
-  // Horizontal gridlines with y-axis labels.
-  for (const tick of ticks) {
-    svgEl("line", { class: "chart-grid", x1: MARGIN.left, x2: plotRight, y1: y(tick), y2: y(tick) }, svg);
-    const label = svgEl(
-      "text",
-      { class: "chart-axis-label", x: MARGIN.left - 8, y: y(tick) + 4, "text-anchor": "end" },
-      svg
-    );
-    label.textContent = tick === 0 ? "0" : formatBytes(tick);
-  }
+  drawYAxis(svg, ticks, y, plotRight);
 
   // X-axis labels at month starts (or the single date when the data is under a month).
   const monthDates = monthTicks(first.date, last.date);
@@ -351,4 +342,142 @@ function setUpDrawAnimation({ svg, dots, reached, length }) {
   }
 
   return replay;
+}
+
+// Horizontal gridlines with y-axis labels, shared by the charts.
+function drawYAxis(svg, ticks, y, plotRight) {
+  for (const tick of ticks) {
+    svgEl("line", { class: "chart-grid", x1: MARGIN.left, x2: plotRight, y1: y(tick), y2: y(tick) }, svg);
+    const label = svgEl(
+      "text",
+      { class: "chart-axis-label", x: MARGIN.left - 8, y: y(tick) + 4, "text-anchor": "end" },
+      svg
+    );
+    label.textContent = tick === 0 ? "0" : formatBytes(tick);
+  }
+}
+
+// ----- Monthly XP bars -----
+
+// What each key shows. "segments" are drawn bottom to top.
+const MONTHLY_VIEWS = {
+  all: { name: "all XP", segments: ["projects", "piscines"], empty: "No XP earned yet." },
+  projects: { name: "projects and exercises", segments: ["projects"], empty: "No project or exercise XP yet." },
+  piscines: { name: "piscines", segments: ["piscines"], empty: "No piscine XP yet." },
+};
+
+// Which field of a month (from monthlyXp in xp.js) feeds each segment.
+const SEGMENT_FIELD = { projects: "other", piscines: "piscines" };
+
+const BAR_MAX_WIDTH = 24;
+const BAR_GAP = 2; // space between stacked segments, in SVG units
+const BAR_MIN_HEIGHT = 2; // so a small, non-zero month stays visible
+
+// Draws the monthly XP bar chart into `container`.
+// months: [{ date, piscines, other, total }] (the output of monthlyXp in xp.js).
+// Returns { setView(name) } where name is "all", "projects" or "piscines".
+export function renderMonthlyChart(container, months) {
+  function draw(viewName) {
+    const view = MONTHLY_VIEWS[viewName] ?? MONTHLY_VIEWS.all;
+    container.replaceChildren();
+
+    // The XP of a month that this view shows.
+    const visibleTotal = (month) =>
+      view.segments.reduce((sum, segment) => sum + month[SEGMENT_FIELD[segment]], 0);
+
+    let peak = months[0];
+    for (const month of months) {
+      if (visibleTotal(month) > visibleTotal(peak)) {
+        peak = month;
+      }
+    }
+
+    if (months.length === 0 || visibleTotal(peak) <= 0) {
+      const message = document.createElement("p");
+      message.className = "stat-note";
+      message.textContent = view.empty;
+      container.append(message);
+      return;
+    }
+
+    // The scale fits the visible data, so small months stay readable.
+    const { ticks, max } = niceTicks(visibleTotal(peak), 5);
+    const plotRight = WIDTH - MARGIN.right;
+    const plotBottom = HEIGHT - MARGIN.bottom;
+    const y = scaleLinear([0, max], [plotBottom, MARGIN.top]);
+
+    const band = (plotRight - MARGIN.left) / months.length; // horizontal space per month
+    const barWidth = Math.min(BAR_MAX_WIDTH, band * 0.7);
+
+    const svg = svgEl(
+      "svg",
+      {
+        viewBox: `0 0 ${WIDTH} ${HEIGHT}`,
+        class: "chart-frame",
+        role: "img",
+        "aria-labelledby": "xp-month-title xp-month-desc",
+      },
+      container
+    );
+    svgEl("title", { id: "xp-month-title" }, svg).textContent = `XP per month: ${view.name}`;
+    svgEl("desc", { id: "xp-month-desc" }, svg).textContent =
+      `${months.length} months. Highest month: ${formatBytes(visibleTotal(peak))} in ${monthLabel.format(peak.date)}.`;
+
+    drawYAxis(svg, ticks, y, plotRight);
+
+    // X-axis labels; skip some when there are too many months to fit.
+    const maxLabels = Math.max(1, Math.floor((plotRight - MARGIN.left) / 40));
+    const every = Math.ceil(months.length / maxLabels);
+    months.forEach((month, index) => {
+      if (index % every !== 0) {
+        return;
+      }
+      const label = svgEl(
+        "text",
+        {
+          class: "chart-axis-label",
+          x: MARGIN.left + band * (index + 0.5),
+          y: HEIGHT - 8,
+          "text-anchor": "middle",
+        },
+        svg
+      );
+      label.textContent = monthLabel.format(month.date);
+    });
+
+    // The bars: each month is a stack of segments, bottom to top.
+    months.forEach((month, index) => {
+      const left = MARGIN.left + band * (index + 0.5) - barWidth / 2;
+      let below = 0; // the value already stacked underneath
+
+      for (const segment of view.segments) {
+        const value = month[SEGMENT_FIELD[segment]];
+        if (value <= 0) {
+          continue;
+        }
+
+        const top = y(below + value);
+        const bottom = y(below);
+        const gap = below > 0 ? BAR_GAP : 0; // carved from this segment, so the bar's top stays exact
+        const height = Math.max(bottom - top - gap, BAR_MIN_HEIGHT);
+
+        svgEl(
+          "rect",
+          {
+            class: `chart-bar chart-bar-${segment}`,
+            x: left,
+            y: bottom - gap - height,
+            width: barWidth,
+            height,
+            rx: 3,
+          },
+          svg
+        );
+        below += value;
+      }
+    });
+  }
+
+  draw("all");
+  return { setView: draw };
 }
