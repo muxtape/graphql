@@ -300,3 +300,59 @@ body {
     display: none;
   }
 }
+
+.chart-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.view-keys {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+
+.view-key[aria-pressed="true"] {
+  background: #0b0b0b;
+  border-color: #0b0b0b;
+  color: #fff;
+}
+
+.chart-legend {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.8rem;
+  color: #555;
+}
+
+.chart-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.legend-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.legend-projects {
+  background: #2a78d6;
+}
+
+.legend-piscines {
+  background: #eb6834;
+}
+
+.chart-bar-projects {
+  fill: #2a78d6;
+}
+
+.chart-bar-piscines {
+  fill: #eb6834;
+}
