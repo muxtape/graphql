@@ -143,3 +143,42 @@ body {
   text-align: right;
   color: #555;
 }
+
+.chart-card {
+  margin: 0;
+}
+
+.chart-title {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.chart-frame {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.chart-grid {
+  stroke: #e1e0d9;
+  stroke-width: 1;
+}
+
+.chart-axis-label {
+  fill: #6b6a66;
+  font-size: 11px;
+}
+
+.chart-line {
+  fill: none;
+  stroke: #2a78d6;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.chart-dot {
+  fill: #2a78d6;
+  stroke: #fff;
+  stroke-width: 2;
+}
