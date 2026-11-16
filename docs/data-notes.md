@@ -227,3 +227,5 @@ where: { type: { _eq: "xp" }, path: { _nlike: "%/piscine-%/%" } }
 - **Profile sections:** welcome header, level + XP + audit ratio card, identity card (login, campus, start date), top 5 skills.
 - **Graphs:** cumulative XP over time (animated line), XP per month (animated bars, split between piscine completion and everything else), plus optional skills bars and audit up/down bars.
 - **Query styles covered:** normal (identity), arguments (XP, level, skills), nested (XP rows with `object { ... }`).
+- XP over time is a step line (cumulative XP only changes when XP is earned).
+- Monthly XP chart has three keys: All (stacked, default), Projects (projects, checkpoints, assessments), Piscines (completion rows only). The vertical axis rescales to the visible data. Colors follow the category, not the selection.
