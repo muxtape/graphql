@@ -7,10 +7,12 @@ import {
   USER_QUERY,
   STATS_QUERY,
   SKILLS_QUERY,
+  XP_HISTORY_QUERY,
   NOT_PISCINE_PATH,
   SKILL_PATTERN,
 } from "./queries.js";
 import { formatDate, formatBytes, formatRatio, formatSkillName } from "./format.js";
+import { cumulativeXp, monthlyXp } from "./xp.js";
 
 const TOP_SKILLS_COUNT = 5;
 
@@ -73,6 +75,31 @@ async function loadTopSkills(userId) {
     // Highest first; ties are ordered by name so the list never jumps around.
     .sort((a, b) => b.amount - a.amount || a.name.localeCompare(b.name))
     .slice(0, TOP_SKILLS_COUNT);
+}
+
+// "/campus/div-01/my-project" -> "my-project"
+function lastPathSegment(path) {
+  return path.split("/").filter(Boolean).pop() ?? path;
+}
+
+// Returns every XP transaction that counts, as plain objects, oldest first.
+async function loadXpHistory(userId) {
+  const data = await graphqlRequest(XP_HISTORY_QUERY, {
+    userId,
+    notPiscine: NOT_PISCINE_PATH,
+  });
+
+  return data.transaction
+    .map((row) => ({
+      id: row.id,
+      amount: Number(row.amount),
+      date: new Date(row.createdAt),
+      name: row.object?.name ?? lastPathSegment(row.path),
+      type: row.object?.type ?? "unknown",
+    }))
+    .filter((transaction) => {
+      return Number.isFinite(transaction.amount) && !Number.isNaN(transaction.date.getTime());
+    });
 }
 
 // ----- Rendering (puts data on the page) -----
@@ -150,15 +177,23 @@ async function start() {
 
   try {
     // The requests don't depend on each other: send them all at once.
-    const [user, stats, skills] = await Promise.all([
+    const [user, stats, skills, xpHistory] = await Promise.all([
       loadUser(),
       loadStats(userId),
       loadTopSkills(userId),
+      loadXpHistory(userId),
     ]);
 
     renderUser(user);
     renderStats(stats);
     renderSkills(skills);
+    // TEMPORARY sanity check (Task 3.4): remove before committing.
+    const line = cumulativeXp(xpHistory);
+    const months = monthlyXp(xpHistory);
+    console.log("XP rows:", xpHistory.length);
+    console.log("Cumulative ends at:", line.at(-1)?.total, "| stats card total:", stats.xp);
+    console.log("Monthly totals add up to:", months.reduce((sum, month) => sum + month.total, 0));
+    console.table(months.map(({ label, other, piscines }) => ({ label, other, piscines })));
     dashboard.hidden = false;
     hideStatus();
   } catch (error) {
