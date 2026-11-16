@@ -13,6 +13,7 @@ import {
 } from "./queries.js";
 import { formatDate, formatBytes, formatRatio, formatSkillName } from "./format.js";
 import { cumulativeXp, monthlyXp } from "./xp.js";
+import { renderXpLineChart } from "./charts.js";
 
 const TOP_SKILLS_COUNT = 5;
 
@@ -187,14 +188,8 @@ async function start() {
     renderUser(user);
     renderStats(stats);
     renderSkills(skills);
-    // TEMPORARY sanity check (Task 3.4): remove before committing.
-    const line = cumulativeXp(xpHistory);
-    const months = monthlyXp(xpHistory);
-    console.log("XP rows:", xpHistory.length);
-    console.log("Cumulative ends at:", line.at(-1)?.total, "| stats card total:", stats.xp);
-    console.log("Monthly totals add up to:", months.reduce((sum, month) => sum + month.total, 0));
-    console.table(months.map(({ label, other, piscines }) => ({ label, other, piscines })));
     dashboard.hidden = false;
+    renderXpLineChart(document.getElementById("xp-line-chart"), cumulativeXp(xpHistory));
     hideStatus();
   } catch (error) {
     if (error.kind === "auth") {
