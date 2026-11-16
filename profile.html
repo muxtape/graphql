@@ -55,6 +55,22 @@
             </figcaption>
             <div id="xp-line-chart"></div>
           </figure>
+          <figure class="chart-card">
+            <figcaption class="chart-title">XP per month</figcaption>
+            <div class="chart-toolbar">
+              <div class="view-keys" role="group" aria-label="Choose which XP to show">
+                <button type="button" class="view-key" data-view="all" aria-pressed="true">All</button>
+                <button type="button" class="view-key" data-view="projects" aria-pressed="false">Projects</button>
+                <button type="button" class="view-key" data-view="piscines" aria-pressed="false">Piscines</button>
+              </div>
+              <div class="chart-legend" aria-hidden="true">
+                <span><i class="legend-swatch legend-projects"></i>Projects and exercises</span>
+                <span><i class="legend-swatch legend-piscines"></i>Piscines</span>
+              </div>
+            </div>
+            <div id="monthly-chart"></div>
+            <p id="monthly-note" class="stat-note"></p>
+          </figure>
         </section>
       </div>
     </main>

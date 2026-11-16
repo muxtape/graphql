@@ -13,7 +13,7 @@ import {
 } from "./queries.js";
 import { formatDate, formatBytes, formatRatio, formatSkillName } from "./format.js";
 import { cumulativeXp, monthlyXp } from "./xp.js";
-import { renderXpLineChart } from "./charts.js";
+import { renderXpLineChart, renderMonthlyChart } from "./charts.js";
 
 const TOP_SKILLS_COUNT = 5;
 
@@ -157,6 +157,31 @@ function renderSkills(skills) {
   }
 }
 
+const MONTHLY_NOTES = {
+  all: "Blue: projects, checkpoints and assessments. Orange: piscine completions.",
+  projects: "Only projects, checkpoints and assessments. The scale fits this view.",
+  piscines: "Only piscine completions, one per piscine finished. The scale fits this view.",
+};
+
+// Wires the All / Projects / Piscines keys to the monthly chart.
+function setUpViewKeys(chart) {
+  const keys = document.querySelectorAll(".view-key");
+  const note = document.getElementById("monthly-note");
+
+  function select(view) {
+    keys.forEach((key) => {
+      key.setAttribute("aria-pressed", String(key.dataset.view === view));
+    });
+    note.textContent = MONTHLY_NOTES[view];
+    chart.setView(view);
+  }
+
+  keys.forEach((key) => {
+    key.addEventListener("click", () => select(key.dataset.view));
+  });
+  select("all");
+}
+
 // ----- Page startup -----
 
 async function start() {
@@ -191,6 +216,8 @@ async function start() {
     dashboard.hidden = false;
     const xpChart = renderXpLineChart(document.getElementById("xp-line-chart"), cumulativeXp(xpHistory));
     document.getElementById("xp-replay").addEventListener("click", xpChart.replay);
+    const monthlyChart = renderMonthlyChart(document.getElementById("monthly-chart"), monthlyXp(xpHistory));
+    setUpViewKeys(monthlyChart);
     hideStatus();
   } catch (error) {
     if (error.kind === "auth") {
