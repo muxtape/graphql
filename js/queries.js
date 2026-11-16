@@ -82,3 +82,28 @@ export const SKILLS_QUERY = `
     }
   }
 `;
+
+// Every XP transaction that counts towards the platform total, oldest first,
+// with the related object (name and type) nested inside.
+// "id" breaks ties between rows with the same timestamp.
+export const XP_HISTORY_QUERY = `
+  query ($userId: Int!, $notPiscine: String!) {
+    transaction(
+      where: {
+        userId: { _eq: $userId }
+        type: { _eq: "xp" }
+        path: { _nlike: $notPiscine }
+      }
+      order_by: [{ createdAt: asc }, { id: asc }]
+    ) {
+      id
+      amount
+      createdAt
+      path
+      object {
+        name
+        type
+      }
+    }
+  }
+`;
