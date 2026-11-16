@@ -176,6 +176,12 @@ where: { type: { _eq: "xp" }, path: { _nlike: "%/piscine-%/%" } }
 - `event.endAt` on the module is a far-future placeholder: don't display or use it.
 - A student still in a piscine has no module enrolment yet: show a dash.
 
+### XP history for charts (Verified)
+- Fetch counted XP rows with `order_by: [{ createdAt: asc }, { id: asc }]` (id breaks ties) and the nested `object { name type }`.
+- A piscine completion row is recognised by `object.type = "piscine"`; everything else counted is "other" (projects, checkpoints, assessments, raids).
+- Monthly buckets use local time (matches what the platform shows). Months without XP between the first and last are shown as zero.
+- `object` can be null in principle: fall back to the last path segment for the name and "unknown" for the type.
+
 ---
 
 ## 5. Query recipes for the app
