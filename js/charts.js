@@ -221,18 +221,7 @@ function addXpHover({ container, svg, series, x, y, plot }) {
       tooltipLine("chart-tooltip-line", `Total ${formatBytes(lastPoint.total)}`)
     );
 
-    // Position in screen pixels, relative to the container. Measured after the content is set.
-    const scale = svg.getBoundingClientRect().width / WIDTH;
-    const width = tip.offsetWidth;
-    const height = tip.offsetHeight;
-    const left = clamp(px * scale - width / 2, 0, container.clientWidth - width);
-    let top = py * scale - height - 12;
-    if (top < 0) {
-      top = py * scale + 14; // no room above: show it below the point
-    }
-    tip.style.left = `${left}px`;
-    tip.style.top = `${top}px`;
-    tip.classList.add("is-visible");
+    placeTooltip(container, svg, tip, px, py);
   }
 
   function onPointer(event) {
@@ -305,10 +294,6 @@ function setUpDrawAnimation({ svg, dots, reached, length }) {
   }
   dots[dots.length - 1].addEventListener("animationend", stop);
 
-  function prefersReducedMotion() {
-    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  }
-
   let observer = null;
 
   function replay() {
@@ -377,7 +362,7 @@ const BAR_MIN_HEIGHT = 2; // so a small, non-zero month stays visible
 // months: [{ date, piscines, other, total }] (the output of monthlyXp in xp.js).
 // Returns { setView(name) } where name is "all", "projects" or "piscines".
 export function renderMonthlyChart(container, months) {
-  function draw(viewName) {
+  function draw(viewName, initial) {
     const view = MONTHLY_VIEWS[viewName] ?? MONTHLY_VIEWS.all;
     container.replaceChildren();
 
@@ -421,7 +406,8 @@ export function renderMonthlyChart(container, months) {
     );
     svgEl("title", { id: "xp-month-title" }, svg).textContent = `XP per month: ${view.name}`;
     svgEl("desc", { id: "xp-month-desc" }, svg).textContent =
-      `${months.length} months. Highest month: ${formatBytes(visibleTotal(peak))} in ${monthLabel.format(peak.date)}.`;
+      `${months.length} months. Highest month: ${formatBytes(visibleTotal(peak))} in ${monthLabel.format(peak.date)}. ` +
+      "Use the arrow keys to browse the months.";
 
     drawYAxis(svg, ticks, y, plotRight);
 
@@ -445,9 +431,18 @@ export function renderMonthlyChart(container, months) {
       label.textContent = monthLabel.format(month.date);
     });
 
-    // The bars: each month is a stack of segments, bottom to top.
+     // A faint band behind the bars highlights the hovered month.
+    const bandRect = svgEl(
+      "rect",
+      { class: "chart-hover chart-band", x: MARGIN.left, y: MARGIN.top, width: band, height: plotBottom - MARGIN.top },
+      svg
+    );
+
+    // The bars: each month is a group of segments, bottom to top.
+    // The group is what the animation scales, so the whole stack rises as one.
     months.forEach((month, index) => {
       const left = MARGIN.left + band * (index + 0.5) - barWidth / 2;
+      const group = svgEl("g", { class: "chart-bar-group", style: `--i: ${index}` }, svg);
       let below = 0; // the value already stacked underneath
 
       for (const segment of view.segments) {
@@ -471,13 +466,192 @@ export function renderMonthlyChart(container, months) {
             height,
             rx: 3,
           },
-          svg
+          group
         );
         below += value;
       }
     });
+
+    // "is-animating" hides the bars and holds the animation paused; "is-playing" starts it.
+    if (!prefersReducedMotion()) {
+      svg.classList.add("is-animating");
+      if (initial) {
+        playWhenVisible(svg); // the first draw: wait until the chart is on screen
+      } else {
+        svg.classList.add("is-playing"); // the user just picked a key: play now
+      }
+    }
+
+    addMonthlyHover({
+      container,
+      svg,
+      months,
+      view,
+      visibleTotal,
+      y,
+      band,
+      bandRect,
+      plot: { left: MARGIN.left, right: plotRight, top: MARGIN.top, bottom: plotBottom },
+    });
   }
 
-  draw("all");
-  return { setView: draw };
+  draw("all", true);
+  return { setView: (viewName) => draw(viewName, false) };
+}
+
+// ----- Helpers shared by the charts' tooltips and animations -----
+
+const monthLongLabel = new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric" });
+
+const SEGMENT_LABEL = { projects: "Projects and exercises", piscines: "Piscines" };
+
+function prefersReducedMotion() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+// Adds "is-playing" to the svg the first time at least 40% of it is on screen.
+function playWhenVisible(svg) {
+  const observer = new IntersectionObserver(
+    (entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        svg.classList.add("is-playing");
+        observer.disconnect();
+      }
+    },
+    { threshold: 0.4 }
+  );
+  observer.observe(svg);
+}
+
+// Puts the tooltip above the point (px, py) given in SVG units, flips it below when there
+// is no room, and keeps it inside the container horizontally.
+function placeTooltip(container, svg, tip, px, py) {
+  const scale = svg.getBoundingClientRect().width / WIDTH; // SVG units -> screen pixels
+  const width = tip.offsetWidth;
+  const height = tip.offsetHeight;
+  const left = clamp(px * scale - width / 2, 0, container.clientWidth - width);
+  let top = py * scale - height - 12;
+  if (top < 0) {
+    top = py * scale + 14;
+  }
+  tip.style.left = `${left}px`;
+  tip.style.top = `${top}px`;
+  tip.classList.add("is-visible");
+}
+
+// A tooltip row with a small color swatch for one category.
+function tooltipRow(segment, text) {
+  const row = document.createElement("div");
+  row.className = "chart-tooltip-row";
+
+  const swatch = document.createElement("i");
+  swatch.className = `legend-swatch legend-${segment}`;
+
+  const label = document.createElement("span");
+  label.textContent = text;
+
+  row.append(swatch, label);
+  return row;
+}
+
+// Hover, touch and keyboard behaviour of the monthly chart: a highlighted column
+// and a tooltip for the month under the pointer.
+function addMonthlyHover({ container, svg, months, view, visibleTotal, y, band, bandRect, plot }) {
+  container.classList.add("chart-wrap");
+  const tip = document.createElement("div");
+  tip.className = "chart-tooltip";
+  tip.setAttribute("aria-live", "off");
+  container.append(tip);
+
+  // A transparent rectangle over the plot area catches the pointer. It comes last, on top.
+  const overlay = svgEl(
+    "rect",
+    {
+      class: "chart-overlay",
+      x: plot.left,
+      y: plot.top,
+      width: plot.right - plot.left,
+      height: plot.bottom - plot.top,
+    },
+    svg
+  );
+
+  svg.setAttribute("tabindex", "0");
+  let keyIndex = null;
+
+  function hide() {
+    keyIndex = null;
+    svg.classList.remove("is-active");
+    tip.classList.remove("is-visible");
+  }
+
+  function show(index) {
+    const month = months[index];
+    const total = visibleTotal(month);
+
+    bandRect.setAttribute("x", plot.left + band * index);
+    svg.classList.add("is-active");
+
+    const rows = [tooltipLine("chart-tooltip-title", monthLongLabel.format(month.date))];
+    if (total <= 0) {
+      rows.push(tooltipLine("chart-tooltip-line", "No XP"));
+    } else {
+      for (const segment of view.segments) {
+        rows.push(tooltipRow(segment, `${SEGMENT_LABEL[segment]}: ${formatBytes(month[SEGMENT_FIELD[segment]])}`));
+      }
+      if (view.segments.length > 1) {
+        rows.push(tooltipLine("chart-tooltip-line", `Total: ${formatBytes(total)}`));
+      }
+    }
+    tip.replaceChildren(...rows);
+
+    placeTooltip(container, svg, tip, plot.left + band * (index + 0.5), y(total));
+  }
+
+  function onPointer(event) {
+    const rect = svg.getBoundingClientRect();
+    if (rect.width === 0) {
+      return;
+    }
+    const svgX = ((event.clientX - rect.left) / rect.width) * WIDTH;
+    const index = clamp(Math.floor((svgX - plot.left) / band), 0, months.length - 1);
+    keyIndex = null;
+    tip.setAttribute("aria-live", "off");
+    show(index);
+  }
+
+  overlay.addEventListener("pointermove", onPointer);
+  overlay.addEventListener("pointerdown", onPointer);
+  overlay.addEventListener("pointerleave", (event) => {
+    if (event.pointerType === "mouse") {
+      hide();
+    }
+  });
+  overlay.addEventListener("pointercancel", hide);
+
+  svg.addEventListener("keydown", (event) => {
+    const last = months.length - 1;
+    let next = null;
+
+    if (event.key === "ArrowRight") {
+      next = keyIndex === null ? 0 : Math.min(keyIndex + 1, last);
+    } else if (event.key === "ArrowLeft") {
+      next = keyIndex === null ? last : Math.max(keyIndex - 1, 0);
+    } else if (event.key === "Home") {
+      next = 0;
+    } else if (event.key === "End") {
+      next = last;
+    } else if (event.key === "Escape") {
+      hide();
+      return;
+    } else {
+      return;
+    }
+
+    event.preventDefault();
+    keyIndex = next;
+    tip.setAttribute("aria-live", "polite");
+    show(next);
+  });
+  svg.addEventListener("blur", hide);
 }
