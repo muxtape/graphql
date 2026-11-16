@@ -182,3 +182,69 @@ body {
   stroke: #fff;
   stroke-width: 2;
 }
+
+.chart-wrap {
+  position: relative;
+}
+
+.chart-hover {
+  visibility: hidden;
+}
+
+.chart-frame.is-active .chart-hover {
+  visibility: visible;
+}
+
+.chart-guide {
+  stroke: #898781;
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.chart-dot-active {
+  fill: #2a78d6;
+  stroke: #fff;
+  stroke-width: 2;
+}
+
+.chart-overlay {
+  fill: transparent;
+  cursor: crosshair;
+  touch-action: pan-y;
+}
+
+.chart-frame:focus-visible {
+  outline: 2px solid #2a78d6;
+  outline-offset: 2px;
+}
+
+.chart-tooltip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: 14rem;
+  padding: 0.4rem 0.6rem;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 0.5rem;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.1s;
+  z-index: 1;
+}
+
+.chart-tooltip.is-visible {
+  opacity: 1;
+}
+
+.chart-tooltip-date {
+  color: #6b6a66;
+}
+
+.chart-tooltip-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
