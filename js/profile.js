@@ -189,7 +189,8 @@ async function start() {
     renderStats(stats);
     renderSkills(skills);
     dashboard.hidden = false;
-    renderXpLineChart(document.getElementById("xp-line-chart"), cumulativeXp(xpHistory));
+    const xpChart = renderXpLineChart(document.getElementById("xp-line-chart"), cumulativeXp(xpHistory));
+    document.getElementById("xp-replay").addEventListener("click", xpChart.replay);
     hideStatus();
   } catch (error) {
     if (error.kind === "auth") {

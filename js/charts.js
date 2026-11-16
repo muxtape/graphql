@@ -11,6 +11,9 @@ const MARGIN = { top: 12, right: 16, bottom: 30, left: 60 };
 // Points closer than this many SVG units (horizontally) count as one spot when hovering.
 const CLUSTER_PX = 3;
 
+// How long the line takes to draw itself, in seconds.
+const DRAW_SECONDS = 2.8;
+
 const monthLabel = new Intl.DateTimeFormat("en-GB", { month: "short", year: "2-digit" });
 const dayLabel = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
@@ -38,7 +41,7 @@ export function renderXpLineChart(container, series) {
     message.className = "stat-note";
     message.textContent = "No XP earned yet.";
     container.append(message);
-    return;
+    return { replay() {} };
   }
 
   const first = series[0];
@@ -96,16 +99,30 @@ export function renderXpLineChart(container, series) {
   }
 
   // The step line: stay flat until the date, then jump up to the new total.
+  // While building it we also add up its length, and note how far along it
+  // each dot sits (needed for the draw-in animation).
   let path = `M${x(first.date)},${y(0)}`;
+  let length = 0;
+  let previousX = x(first.date);
+  let previousY = y(0);
+  const reached = []; // path length at which each dot is reached
   for (const point of series) {
-    path += `H${x(point.date)}V${y(point.total)}`;
+    const px = x(point.date);
+    const py = y(point.total);
+    path += `H${px}V${py}`;
+    length += Math.abs(px - previousX) + Math.abs(previousY - py);
+    reached.push(length);
+    previousX = px;
+    previousY = py;
   }
   svgEl("path", { class: "chart-line", d: path }, svg);
 
   // One dot per XP transaction.
-  for (const point of series) {
-    svgEl("circle", { class: "chart-dot", cx: x(point.date), cy: y(point.total), r: 3.5 }, svg);
-  }
+  const dots = series.map((point) =>
+    svgEl("circle", { class: "chart-dot", cx: x(point.date), cy: y(point.total), r: 3.5 }, svg)
+  );
+
+  const replay = setUpDrawAnimation({ svg, dots, reached, length });
 
   addXpHover({
     container,
@@ -115,6 +132,8 @@ export function renderXpLineChart(container, series) {
     y,
     plot: { left: MARGIN.left, right: plotRight, top: MARGIN.top, bottom: plotBottom },
   });
+
+  return { replay };
 }
 
 function clamp(value, low, high) {
@@ -272,4 +291,64 @@ function addXpHover({ container, svg, series, x, y, plot }) {
     show(next, next);
   });
   svg.addEventListener("blur", hide);
+}
+
+// Sets up the draw-in animation of the XP line chart (the CSS does the animating).
+// Returns a function that plays it again.
+function setUpDrawAnimation({ svg, dots, reached, length }) {
+  const total = length || 1;
+
+  // Read by the CSS. The "+ 2" keeps the round line cap from leaving a speck at the start.
+  svg.style.setProperty("--length", String(total + 2));
+  svg.style.setProperty("--duration", `${DRAW_SECONDS}s`);
+
+  // Each dot appears when the line reaches it.
+  dots.forEach((dot, index) => {
+    dot.style.setProperty("--delay", `${(reached[index] / total) * DRAW_SECONDS}s`);
+  });
+
+  // The last dot finishes last; remove the animation classes then, so the chart
+  // returns to its normal, fully drawn state.
+  function stop() {
+    svg.classList.remove("is-animating", "is-playing");
+  }
+  dots[dots.length - 1].addEventListener("animationend", stop);
+
+  function prefersReducedMotion() {
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }
+
+  let observer = null;
+
+  function replay() {
+    if (observer) {
+      observer.disconnect();
+      observer = null;
+    }
+    stop();
+    if (prefersReducedMotion()) {
+      return;
+    }
+    void svg.getBoundingClientRect(); // forces a layout, so the animation restarts from the beginning
+    svg.classList.add("is-animating", "is-playing");
+  }
+
+  if (!prefersReducedMotion()) {
+    // "is-animating" hides the line and dots (and holds the animation paused);
+    // "is-playing" starts it once the chart is on screen.
+    svg.classList.add("is-animating");
+    observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          svg.classList.add("is-playing");
+          observer.disconnect();
+          observer = null;
+        }
+      },
+      { threshold: 0.4 }
+    );
+    observer.observe(svg);
+  }
+
+  return replay;
 }
