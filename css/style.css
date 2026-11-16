@@ -356,3 +356,45 @@ body {
 .chart-bar-piscines {
   fill: #eb6834;
 }
+
+.chart-band {
+  fill: rgba(11, 11, 11, 0.06);
+}
+
+.chart-tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.chart-tooltip-row .legend-swatch {
+  flex: none;
+}
+
+/* Bars rise from the baseline, one month after another. */
+.chart-frame.is-animating .chart-bar-group {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: chart-bar-rise 0.6s ease-out both paused;
+  animation-delay: calc(var(--i) * 60ms);
+}
+
+.chart-frame.is-playing .chart-bar-group {
+  animation-play-state: running;
+}
+
+@keyframes chart-bar-rise {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chart-frame.is-animating .chart-bar-group {
+    animation: none;
+    transform: none;
+  }
+}
