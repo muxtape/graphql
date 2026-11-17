@@ -140,18 +140,23 @@ button:hover:not(:disabled) {
   color: var(--error);
 }
 
-.login-button {
-  width: 100%;
-  padding: 0.65rem;
+.login-button,
+.logout-button {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--on-accent);
   font-weight: 600;
 }
 
-.login-button:hover:not(:disabled) {
+.login-button:hover:not(:disabled),
+.logout-button:hover:not(:disabled) {
   border-color: var(--accent);
   filter: brightness(1.08);
+}
+
+.login-button {
+  width: 100%;
+  padding: 0.65rem;
 }
 
 .login-button:disabled {
@@ -235,18 +240,26 @@ button:hover:not(:disabled) {
 .card-title {
   margin: 0 0 0.75rem;
   font-size: 1.05rem;
+  text-align: center;
 }
 
 .card-head {
+  position: relative;
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
-  gap: 0.5rem;
   margin-bottom: 0.5rem;
 }
 
 .card-head .card-title {
   margin: 0;
+}
+
+.card-head .chart-replay {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .card-chart {
@@ -289,6 +302,10 @@ button:hover:not(:disabled) {
   margin: 0;
 }
 
+.stat {
+  text-align: center;
+}
+
 .stat dt {
   color: var(--text-muted);
   font-size: 0.9rem;
@@ -299,11 +316,6 @@ button:hover:not(:disabled) {
   font-size: 2.2rem;
   font-weight: 700;
   line-height: 1.1;
-}
-
-/* ===== Logout ===== */
-.logout-button {
-  font-weight: 600;
 }
 
 /* ===== Charts: frame, axes, titles, keys and legend ===== */
