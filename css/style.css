@@ -1,72 +1,40 @@
 /* ===== Design tokens: every color in the app is defined here ===== */
 :root {
-  color-scheme: light dark;
+  color-scheme: dark;
 
-  /* Zone01 brand. PLACEHOLDER values: replace them with the colors from zone01.gr.
-     --accent: main brand color (buttons, links, focus ring, XP line, skill bars)
-     --nav-bg / --nav-text: the top bar
-     --logo-filter: e.g. "invert(1)" if the logo is dark and the navbar is dark */
-  --accent: #2a78d6;
-  --on-accent: #ffffff;
-  --nav-bg: #ffffff;
-  --nav-text: #0b0b0b;
+  /* Zone01 brand colors, taken from zone01.gr */
+  --brand-yellow: #fcff6b;
+  --brand-dark: #161718;
+  --brand-light: #f7f7f9;
+
+  --accent: var(--brand-yellow);
+  --on-accent: var(--brand-dark);
+  --nav-bg: var(--brand-dark);
+  --nav-text: var(--brand-light);
   --logo-filter: none;
 
-  --page-bg: #f4f3ef;
-  --surface: #ffffff;
-  --text: #0b0b0b;
-  --text-muted: #555555;
-  --text-faint: #6b6a66;
-  --border: #dddcd5;
-  --hairline: #eeede8;
-  --grid: #e1e0d9;
-  --track: #efeee9;
-  --guide: #898781;
-  --error: #b00020;
+  --page-bg: var(--brand-dark);
+  --surface: #1f2123;
+  --text: var(--brand-light);
+  --text-muted: #b4b7bd;
+  --text-faint: #9a9ea6;
+  --border: #2f3236;
+  --hairline: #292c2f;
+  --grid: #2a2d30;
+  --track: #2a2d30;
+  --guide: #8a8d93;
+  --error: #ff8a96;
 
-  --series-projects: #2a78d6;
-  --series-piscines: #eb6834;
-  --series-done: #0f8a62;
-  --series-received: #6250d6;
+  --series-projects: var(--brand-yellow);
+  --series-piscines: #8f94ff;
+  --series-done: #4fd8a8;
+  --series-received: #ff8a70;
 
-  --tooltip-bg: #ffffff;
-  --tooltip-border: #cccbc3;
-  --band: rgba(11, 11, 11, 0.06);
-  --key-on-bg: #0b0b0b;
-  --key-on-text: #ffffff;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --accent: #3987e5;
-    --on-accent: #0b0b0b;
-    --nav-bg: #1c1c1b;
-    --nav-text: #f0efec;
-    --logo-filter: none;
-
-    --page-bg: #121211;
-    --surface: #1c1c1b;
-    --text: #f0efec;
-    --text-muted: #c3c2b7;
-    --text-faint: #a3a29b;
-    --border: #34342f;
-    --hairline: #2a2a28;
-    --grid: #2c2c2a;
-    --track: #2d2d2b;
-    --guide: #898781;
-    --error: #ff8a96;
-
-    --series-projects: #3987e5;
-    --series-piscines: #d95926;
-    --series-done: #199e70;
-    --series-received: #9085e9;
-
-    --tooltip-bg: #262625;
-    --tooltip-border: #4a4a46;
-    --band: rgba(255, 255, 255, 0.07);
-    --key-on-bg: #f0efec;
-    --key-on-text: #121211;
-  }
+  --tooltip-bg: #26292c;
+  --tooltip-border: #3d4145;
+  --band: rgba(255, 255, 255, 0.06);
+  --key-on-bg: var(--accent);
+  --key-on-text: var(--on-accent);
 }
 
 /* ===== Base ===== */
@@ -640,3 +608,7 @@ button:hover:not(:disabled) {
   }
 }
 
+
+.brand-stat {
+  color: var(--accent);
+}
