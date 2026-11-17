@@ -4,58 +4,71 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <title>Profile | GraphQL Profile</title>
+  <title>StatZone01 | Profile</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <div id="app" hidden>
-    <header class="profile-header">
-      <h1 class="profile-title">Profile</h1>
-      <button type="button" id="logout-button" class="logout-button">Log out</button>
+    <header class="navbar">
+      <div class="navbar-inner">
+        <a class="brand" href="profile.html" aria-label="StatZone01, home">
+          <span class="brand-stat">Stat</span><img class="brand-logo" src="assets/zone01-logo.svg" alt="Zone01">
+        </a>
+        <button type="button" id="logout-button" class="logout-button">Log out</button>
+      </div>
     </header>
 
-    <main class="profile-content">
+    <main class="page">
       <p id="status-message" class="status-message" role="status">Loading your data...</p>
 
       <div id="dashboard" hidden>
-        <h2 id="welcome" class="welcome"></h2>
+        <h1 id="welcome" class="welcome"></h1>
 
-        <section id="stats" class="card" aria-labelledby="stats-title">
-          <h3 id="stats-title" class="card-title">Progress</h3>
-          <dl class="stat-grid">
-            <div class="stat"><dt>Level</dt><dd id="stat-level"></dd></div>
-            <div class="stat"><dt>Total XP</dt><dd id="stat-xp"></dd></div>
-            <div class="stat"><dt>Audit ratio</dt><dd id="stat-audit"></dd></div>
-          </dl>
-          <h4 class="chart-subtitle">Audits done and received</h4>
-          <div id="audit-chart"></div>
-        </section>
+        <div class="grid grid-summary">
+          <section id="identity" class="card" aria-labelledby="identity-title">
+            <h2 id="identity-title" class="card-title">Identity</h2>
+            <dl class="info-list">
+              <div class="info-row"><dt>Login</dt><dd id="user-login"></dd></div>
+              <div class="info-row"><dt>Campus</dt><dd id="user-campus"></dd></div>
+              <div class="info-row"><dt>Started</dt><dd id="user-started"></dd></div>
+            </dl>
+          </section>
 
-        <section id="identity" class="card" aria-labelledby="identity-title">
-          <h3 id="identity-title" class="card-title">Identity</h3>
-          <dl class="info-list">
-            <div class="info-row"><dt>Login</dt><dd id="user-login"></dd></div>
-            <div class="info-row"><dt>Campus</dt><dd id="user-campus"></dd></div>
-            <div class="info-row"><dt>Started</dt><dd id="user-started"></dd></div>
-          </dl>
-        </section>
+          <section id="progress" class="card" aria-labelledby="progress-title">
+            <h2 id="progress-title" class="card-title">Progress</h2>
+            <dl class="stat-stack">
+              <div class="stat"><dt>Level</dt><dd id="stat-level"></dd></div>
+              <div class="stat"><dt>Total XP</dt><dd id="stat-xp"></dd></div>
+            </dl>
+          </section>
 
-        <section id="skills" class="card" aria-labelledby="skills-title">
-          <h3 id="skills-title" class="card-title">Top skills</h3>
-          <div id="skills-chart"></div>
-        </section>
+          <section id="audits" class="card" aria-labelledby="audits-title">
+            <h2 id="audits-title" class="card-title">Audits</h2>
+            <dl class="stat-stack">
+              <div class="stat"><dt>Audit ratio</dt><dd id="stat-audit"></dd></div>
+            </dl>
+            <div id="audit-chart" class="card-chart"></div>
+          </section>
 
-        <section id="statistics" class="card" aria-labelledby="statistics-title">
-          <h3 id="statistics-title" class="card-title">Statistics</h3>
-          <figure class="chart-card">
-            <figcaption class="chart-title">
-              <span>XP over time</span>
+          <section id="skills" class="card" aria-labelledby="skills-title">
+            <h2 id="skills-title" class="card-title">Top skills</h2>
+            <div id="skills-chart"></div>
+          </section>
+        </div>
+
+        <div class="grid grid-charts">
+          <section class="card" aria-labelledby="xp-line-heading">
+            <div class="card-head">
+              <h2 id="xp-line-heading" class="card-title">XP over time</h2>
               <button type="button" id="xp-replay" class="chart-replay" aria-label="Replay the XP chart animation">Replay</button>
-            </figcaption>
+            </div>
             <div id="xp-line-chart"></div>
-          </figure>
-          <figure class="chart-card">
-            <figcaption class="chart-title">XP per month</figcaption>
+          </section>
+
+          <section class="card" aria-labelledby="xp-month-heading">
+            <div class="card-head">
+              <h2 id="xp-month-heading" class="card-title">XP per month</h2>
+            </div>
             <div class="chart-toolbar">
               <div class="view-keys" role="group" aria-label="Choose which XP to show">
                 <button type="button" class="view-key" data-view="all" aria-pressed="true">All</button>
@@ -69,8 +82,8 @@
             </div>
             <div id="monthly-chart"></div>
             <p id="monthly-note" class="stat-note"></p>
-          </figure>
-        </section>
+          </section>
+        </div>
       </div>
     </main>
   </div>
