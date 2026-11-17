@@ -187,10 +187,10 @@ async function start() {
       loadXpHistory(userId),
     ]);
 
+    dashboard.hidden = false;
     renderUser(user);
     renderStats(stats);
-    renderSkillsChart(document.getElementById("skills-chart"), skills);
-    dashboard.hidden = false;
+    renderSkillsChart(document.getElementById("skills-chart"), skills);    
     const xpChart = renderXpLineChart(document.getElementById("xp-line-chart"), cumulativeXp(xpHistory));
     document.getElementById("xp-replay").addEventListener("click", xpChart.replay);
     const monthlyChart = renderMonthlyChart(document.getElementById("monthly-chart"), monthlyXp(xpHistory));
