@@ -20,6 +20,8 @@ const TOP_SKILLS_COUNT = 5;
 const app = document.getElementById("app");
 const statusMessage = document.getElementById("status-message");
 const dashboard = document.getElementById("dashboard");
+const loadError = document.getElementById("load-error");
+const loadErrorText = document.getElementById("load-error-text");
 
 // What the user sees when loading fails. ("auth" is not listed: the
 // graphqlRequest helper already logs the user out and redirects.)
@@ -30,13 +32,21 @@ const ERROR_MESSAGES = {
   server: "The server had a problem. Please try again later.",
 };
 
-function showStatus(message) {
-  statusMessage.textContent = message;
+function showLoading() {
+  loadError.hidden = true;
   statusMessage.hidden = false;
 }
 
-function hideStatus() {
+function hideLoading() {
   statusMessage.hidden = true;
+}
+
+// A load failure: hide the half-drawn page and offer a retry.
+function showLoadError(message) {
+  dashboard.hidden = true;
+  statusMessage.hidden = true;
+  loadErrorText.textContent = message;
+  loadError.hidden = false;
 }
 
 // ----- Data loading (talks to the server) -----
@@ -168,7 +178,7 @@ async function start() {
   }
 
   app.hidden = false;
-  showStatus("Loading your data...");
+  showLoading();
 
   try {
     // The requests don't depend on each other: send them all at once.
@@ -187,12 +197,16 @@ async function start() {
     document.getElementById("xp-replay").addEventListener("click", xpChart.replay);
     const monthlyChart = renderMonthlyChart(document.getElementById("monthly-chart"), monthlyXp(xpHistory));
     setUpViewKeys(monthlyChart);
-    hideStatus();
+    // Nothing to replay or switch between when there is no XP yet.
+    const hasXp = xpHistory.length > 0;
+    document.getElementById("xp-replay").hidden = !hasXp;
+    document.querySelector(".chart-toolbar").hidden = !hasXp;
+    hideLoading();
   } catch (error) {
     if (error.kind === "auth") {
       return; // already being redirected to the login page
     }
-    showStatus(ERROR_MESSAGES[error.kind] ?? "Something unexpected went wrong.");
+    showLoadError(ERROR_MESSAGES[error.kind] ?? "Something unexpected went wrong.");
     console.error(error);
   }
 }
@@ -210,3 +224,4 @@ window.addEventListener("pageshow", (event) => {
 });
 
 document.getElementById("logout-button").addEventListener("click", logout);
+document.getElementById("retry-button").addEventListener("click", () => window.location.reload());

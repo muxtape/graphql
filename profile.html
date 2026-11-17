@@ -9,7 +9,11 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <noscript>
+    <p class="noscript">StatZone01 needs JavaScript to show your stats. Please enable it and reload the page.</p>
+  </noscript>
   <div id="app" hidden>
+    <a class="skip-link" href="#main">Skip to main content</a>
     <header class="navbar">
       <div class="navbar-inner">
         <a class="brand" href="profile.html" aria-label="StatZone01, home">
@@ -19,8 +23,14 @@
       </div>
     </header>
 
-    <main class="page">
-      <p id="status-message" class="status-message" role="status">Loading your data...</p>
+    <main class="page" id="main" tabindex="-1">
+      <div class="status-area">
+        <p id="status-message" class="status-message is-loading" role="status">Loading your data...</p>
+        <div id="load-error" class="load-error" role="alert" hidden>
+          <p id="load-error-text"></p>
+          <button type="button" id="retry-button" class="retry-button">Try again</button>
+        </div>
+      </div>
 
       <div id="dashboard" hidden>
         <h1 id="welcome" class="welcome"></h1>
