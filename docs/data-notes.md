@@ -229,3 +229,4 @@ where: { type: { _eq: "xp" }, path: { _nlike: "%/piscine-%/%" } }
 - **Query styles covered:** normal (identity), arguments (XP, level, skills), nested (XP rows with `object { ... }`).
 - XP over time is a step line (cumulative XP only changes when XP is earned).
 - Monthly XP chart has three keys: All (stacked, default), Projects (projects, checkpoints, assessments), Piscines (completion rows only). The vertical axis rescales to the visible data. Colors follow the category, not the selection.
+- Skills and audit totals are drawn as horizontal SVG bars. Skills use a fixed 0 to 100 scale (values above 100 stop at the end of the track, the label shows the real value); audits are scaled to the larger of the two totals.
