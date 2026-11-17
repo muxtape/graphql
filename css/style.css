@@ -141,7 +141,8 @@ button:hover:not(:disabled) {
 }
 
 .login-button,
-.logout-button {
+.logout-button,
+.retry-button {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--on-accent);
@@ -149,7 +150,8 @@ button:hover:not(:disabled) {
 }
 
 .login-button:hover:not(:disabled),
-.logout-button:hover:not(:disabled) {
+.logout-button:hover:not(:disabled),
+.retry-button:hover:not(:disabled) {
   border-color: var(--accent);
   filter: brightness(1.08);
 }
@@ -200,6 +202,7 @@ button:hover:not(:disabled) {
 
 .stat-note {
   margin: 1rem 0 0;
+  text-align: center;
 }
 
 .welcome {
@@ -623,4 +626,72 @@ button:hover:not(:disabled) {
 
 .brand-stat {
   color: var(--accent);
+}
+
+/* ===== States, skip link and accessibility ===== */
+.status-message.is-loading::before {
+  content: "";
+  display: inline-block;
+  width: 0.9em;
+  height: 0.9em;
+  margin-right: 0.5em;
+  vertical-align: -0.1em;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.load-error {
+  padding: 1.5rem 0;
+  text-align: center;
+}
+
+.load-error p {
+  margin: 0 0 1rem;
+  color: var(--error);
+}
+
+.chart-toolbar[hidden] {
+  display: none;
+}
+
+.noscript {
+  margin: 0;
+  padding: 1rem;
+  text-align: center;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.skip-link {
+  position: absolute;
+  top: -3rem;
+  left: 0.5rem;
+  z-index: 20;
+  padding: 0.5rem 0.9rem;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+  border-radius: 0.4rem;
+}
+
+.skip-link:focus {
+  top: 0.5rem;
+}
+
+.page:focus {
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-message.is-loading::before {
+    animation: none;
+  }
 }
