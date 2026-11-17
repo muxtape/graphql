@@ -655,3 +655,141 @@ function addMonthlyHover({ container, svg, months, view, visibleTotal, y, band, 
   });
   svg.addEventListener("blur", hide);
 }
+
+// ----- Horizontal bars (skills, audits) -----
+
+const HBAR = { width: 680, rowHeight: 34, barHeight: 14, top: 6, left: 90, right: 70, minWidth: 2 };
+const HBAR_LABEL_MAX = 12; // characters before a label is shortened
+
+function showMessage(container, text) {
+  container.replaceChildren();
+  const message = document.createElement("p");
+  message.className = "stat-note";
+  message.textContent = text;
+  container.append(message);
+}
+
+// Draws rows of horizontal bars into `container`.
+// rows: [{ label, value, valueText, className }]. The scale runs from 0 to `max` (> 0).
+// `id` makes the title and description ids unique on the page.
+function renderHorizontalBars(container, { rows, max, id, title, description }) {
+  container.replaceChildren();
+
+  const height = HBAR.top * 2 + rows.length * HBAR.rowHeight;
+  const plotRight = HBAR.width - HBAR.right;
+  const x = scaleLinear([0, max], [HBAR.left, plotRight]);
+
+  const svg = svgEl(
+    "svg",
+    {
+      viewBox: `0 0 ${HBAR.width} ${height}`,
+      class: "chart-frame",
+      role: "img",
+      "aria-labelledby": `${id}-title ${id}-desc`,
+    },
+    container
+  );
+  svgEl("title", { id: `${id}-title` }, svg).textContent = title;
+  svgEl("desc", { id: `${id}-desc` }, svg).textContent = description;
+
+  rows.forEach((row, index) => {
+    const centerY = HBAR.top + HBAR.rowHeight * (index + 0.5);
+    const barY = centerY - HBAR.barHeight / 2;
+
+    // Shortened label; the full text stays available as a hover title.
+    const shown =
+      row.label.length > HBAR_LABEL_MAX ? `${row.label.slice(0, HBAR_LABEL_MAX - 1)}…` : row.label;
+    const label = svgEl(
+      "text",
+      { class: "chart-hbar-label", x: HBAR.left - 10, y: centerY + 4, "text-anchor": "end" },
+      svg
+    );
+    label.textContent = shown;
+    if (shown !== row.label) {
+      svgEl("title", {}, label).textContent = row.label;
+    }
+
+    // The gray track marks the full length of the scale.
+    svgEl(
+      "rect",
+      { class: "chart-hbar-track", x: HBAR.left, y: barY, width: plotRight - HBAR.left, height: HBAR.barHeight, rx: 3 },
+      svg
+    );
+
+    // A value of 0 draws no bar. Values above the maximum stop at the end of the track.
+    const shownValue = Math.min(Math.max(row.value, 0), max);
+    if (shownValue > 0) {
+      svgEl(
+        "rect",
+        {
+          class: `chart-hbar ${row.className}`,
+          x: HBAR.left,
+          y: barY,
+          width: Math.max(x(shownValue) - HBAR.left, HBAR.minWidth),
+          height: HBAR.barHeight,
+          rx: 3,
+          style: `--i: ${index}`,
+        },
+        svg
+      );
+    }
+
+    const value = svgEl(
+      "text",
+      { class: "chart-hbar-value", x: plotRight + 10, y: centerY + 4 },
+      svg
+    );
+    value.textContent = row.valueText;
+  });
+
+  if (!prefersReducedMotion()) {
+    svg.classList.add("is-animating");
+    playWhenVisible(svg);
+  }
+}
+
+// Top skills as bars on a fixed 0 to 100 scale.
+// skills: [{ name, amount }], highest first (the output of loadTopSkills).
+export function renderSkillsChart(container, skills) {
+  if (skills.length === 0) {
+    showMessage(container, "No skills yet.");
+    return;
+  }
+
+  renderHorizontalBars(container, {
+    rows: skills.map((skill) => ({
+      label: skill.name,
+      value: skill.amount,
+      valueText: `${skill.amount}%`,
+      className: "chart-hbar-skill",
+    })),
+    max: 100,
+    id: "skills-svg",
+    title: "Top skills",
+    description: `${skills.map((skill) => `${skill.name} ${skill.amount}%`).join(", ")}.`,
+  });
+}
+
+// Audits done and received, compared on one scale.
+// `up` and `down` are the totals from the user table (bytes of XP); null counts as 0.
+export function renderAuditChart(container, up, down) {
+  const done = Number(up) || 0;
+  const received = Number(down) || 0;
+  const max = Math.max(done, received);
+
+  if (max <= 0) {
+    showMessage(container, "No audits yet.");
+    return;
+  }
+
+  renderHorizontalBars(container, {
+    rows: [
+      { label: "Done", value: done, valueText: formatBytes(done), className: "chart-hbar-done" },
+      { label: "Received", value: received, valueText: formatBytes(received), className: "chart-hbar-received" },
+    ],
+    max,
+    id: "audit-svg",
+    title: "Audits done and received",
+    description: `Done ${formatBytes(done)}, received ${formatBytes(received)}.`,
+  });
+}
