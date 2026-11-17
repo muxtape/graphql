@@ -139,18 +139,24 @@ function setUpViewKeys(chart) {
   const keys = document.querySelectorAll(".view-key");
   const note = document.getElementById("monthly-note");
 
-  function select(view) {
+  // Shows which key is selected, and the matching note. Does not touch the chart.
+  function showState(view) {
     keys.forEach((key) => {
       key.setAttribute("aria-pressed", String(key.dataset.view === view));
     });
     note.textContent = MONTHLY_NOTES[view];
-    chart.setView(view);
+  }
+
+  function select(view) {
+    showState(view);
+    chart.setView(view); // redraws the chart and plays its animation
   }
 
   keys.forEach((key) => {
     key.addEventListener("click", () => select(key.dataset.view));
   });
-  select("all");
+
+  showState("all");
 }
 
 // ----- Page startup -----
