@@ -128,23 +128,15 @@ function renderStats(stats) {
   renderAuditChart(document.getElementById("audit-chart"), stats.up, stats.down);
 }
 
-const MONTHLY_NOTES = {
-  all: "Blue: projects, checkpoints and assessments. Orange: piscine completions.",
-  projects: "Only projects, checkpoints and assessments. The scale fits this view.",
-  piscines: "Only piscine completions, one per piscine finished. The scale fits this view.",
-};
-
 // Wires the All / Projects / Piscines keys to the monthly chart.
 function setUpViewKeys(chart) {
   const keys = document.querySelectorAll(".view-key");
-  const note = document.getElementById("monthly-note");
 
-  // Shows which key is selected, and the matching note. Does not touch the chart.
+  // Shows which key is selected. Does not touch the chart.
   function showState(view) {
     keys.forEach((key) => {
       key.setAttribute("aria-pressed", String(key.dataset.view === view));
     });
-    note.textContent = MONTHLY_NOTES[view];
   }
 
   function select(view) {
@@ -156,7 +148,7 @@ function setUpViewKeys(chart) {
     key.addEventListener("click", () => select(key.dataset.view));
   });
 
-  showState("all");
+  showState("all"); 
 }
 
 // ----- Page startup -----
