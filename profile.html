@@ -26,9 +26,8 @@
             <div class="stat"><dt>Total XP</dt><dd id="stat-xp"></dd></div>
             <div class="stat"><dt>Audit ratio</dt><dd id="stat-audit"></dd></div>
           </dl>
-          <p class="stat-note">
-            Audits done <span id="audit-up"></span> · received <span id="audit-down"></span>
-          </p>
+          <h4 class="chart-subtitle">Audits done and received</h4>
+          <div id="audit-chart"></div>
         </section>
 
         <section id="identity" class="card" aria-labelledby="identity-title">
@@ -42,8 +41,7 @@
 
         <section id="skills" class="card" aria-labelledby="skills-title">
           <h3 id="skills-title" class="card-title">Top skills</h3>
-          <ol id="skills-list" class="skill-list"></ol>
-          <p id="skills-empty" class="stat-note" hidden>No skills yet.</p>
+          <div id="skills-chart"></div>
         </section>
 
         <section id="statistics" class="card" aria-labelledby="statistics-title">

@@ -13,7 +13,7 @@ import {
 } from "./queries.js";
 import { formatDate, formatBytes, formatRatio, formatSkillName } from "./format.js";
 import { cumulativeXp, monthlyXp } from "./xp.js";
-import { renderXpLineChart, renderMonthlyChart } from "./charts.js";
+import { renderXpLineChart, renderMonthlyChart, renderSkillsChart, renderAuditChart } from "./charts.js";
 
 const TOP_SKILLS_COUNT = 5;
 
@@ -125,36 +125,7 @@ function renderStats(stats) {
   document.getElementById("stat-level").textContent = stats.level ?? "—";
   document.getElementById("stat-xp").textContent = formatBytes(stats.xp);
   document.getElementById("stat-audit").textContent = formatRatio(stats.auditRatio);
-  document.getElementById("audit-up").textContent = formatBytes(stats.up);
-  document.getElementById("audit-down").textContent = formatBytes(stats.down);
-}
-
-function renderSkills(skills) {
-  const list = document.getElementById("skills-list");
-  list.replaceChildren(); // remove anything rendered before
-  document.getElementById("skills-empty").hidden = skills.length > 0;
-
-  for (const skill of skills) {
-    const item = document.createElement("li");
-    item.className = "skill";
-
-    const name = document.createElement("span");
-    name.className = "skill-name";
-    name.textContent = skill.name;
-
-    const bar = document.createElement("progress");
-    bar.className = "skill-bar";
-    bar.max = 100;
-    bar.value = skill.amount;
-    bar.setAttribute("aria-label", `${skill.name} skill level`);
-
-    const value = document.createElement("span");
-    value.className = "skill-value";
-    value.textContent = `${skill.amount}%`;
-
-    item.append(name, bar, value);
-    list.append(item);
-  }
+  renderAuditChart(document.getElementById("audit-chart"), stats.up, stats.down);
 }
 
 const MONTHLY_NOTES = {
@@ -212,7 +183,7 @@ async function start() {
 
     renderUser(user);
     renderStats(stats);
-    renderSkills(skills);
+    renderSkillsChart(document.getElementById("skills-chart"), skills);
     dashboard.hidden = false;
     const xpChart = renderXpLineChart(document.getElementById("xp-line-chart"), cumulativeXp(xpHistory));
     document.getElementById("xp-replay").addEventListener("click", xpChart.replay);
