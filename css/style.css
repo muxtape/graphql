@@ -2,6 +2,16 @@
 :root {
   color-scheme: light dark;
 
+  /* Zone01 brand. PLACEHOLDER values: replace them with the colors from zone01.gr.
+     --accent: main brand color (buttons, links, focus ring, XP line, skill bars)
+     --nav-bg / --nav-text: the top bar
+     --logo-filter: e.g. "invert(1)" if the logo is dark and the navbar is dark */
+  --accent: #2a78d6;
+  --on-accent: #ffffff;
+  --nav-bg: #ffffff;
+  --nav-text: #0b0b0b;
+  --logo-filter: none;
+
   --page-bg: #f4f3ef;
   --surface: #ffffff;
   --text: #0b0b0b;
@@ -13,7 +23,6 @@
   --track: #efeee9;
   --guide: #898781;
   --error: #b00020;
-  --accent: #2a78d6;
 
   --series-projects: #2a78d6;
   --series-piscines: #eb6834;
@@ -29,6 +38,12 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
+    --accent: #3987e5;
+    --on-accent: #0b0b0b;
+    --nav-bg: #1c1c1b;
+    --nav-text: #f0efec;
+    --logo-filter: none;
+
     --page-bg: #121211;
     --surface: #1c1c1b;
     --text: #f0efec;
@@ -40,7 +55,6 @@
     --track: #2d2d2b;
     --guide: #898781;
     --error: #ff8a96;
-    --accent: #3987e5;
 
     --series-projects: #3987e5;
     --series-piscines: #d95926;
@@ -59,9 +73,22 @@
 body {
   font-family: system-ui, sans-serif;
   margin: 0;
-  padding: 2rem 1rem;
   background: var(--page-bg);
   color: var(--text);
+}
+
+button {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  padding: 0.4rem 0.9rem;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--text-faint);
 }
 
 :focus-visible {
@@ -69,10 +96,56 @@ body {
   outline-offset: 2px;
 }
 
+/* ===== Brand (login page and navbar) ===== */
+.brand {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  color: var(--nav-text);
+  font-size: 1.4rem;
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.brand-logo {
+  height: 1.4em;
+  width: auto;
+  margin-left: 0.15em;
+  filter: var(--logo-filter);
+}
+
 /* ===== Login page ===== */
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem 1rem;
+}
+
 .login-container {
+  width: 100%;
   max-width: 24rem;
-  margin: 0 auto;
+}
+
+.login-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 2rem 1.75rem;
+}
+
+.login-card .brand {
+  display: flex;
+  justify-content: center;
+  color: var(--text);
+  font-size: 2.2rem;
+}
+
+.login-subtitle {
+  margin: 0.75rem 0 1.5rem;
+  text-align: center;
+  color: var(--text-muted);
 }
 
 .form-group {
@@ -86,16 +159,31 @@ body {
 
 .form-group input {
   width: 100%;
-  padding: 0.5rem;
+  padding: 0.55rem;
   box-sizing: border-box;
-  background: var(--surface);
+  background: var(--page-bg);
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 0.4rem;
+  font: inherit;
 }
 
 .error-message {
   color: var(--error);
+}
+
+.login-button {
+  width: 100%;
+  padding: 0.65rem;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+.login-button:hover:not(:disabled) {
+  border-color: var(--accent);
+  filter: brightness(1.08);
 }
 
 .login-button:disabled {
@@ -103,16 +191,29 @@ body {
   cursor: not-allowed;
 }
 
-/* ===== Profile page: header, status and cards ===== */
-.profile-header {
+/* ===== Navbar ===== */
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--nav-bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.navbar-inner {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0.6rem 1rem;
 }
 
-.profile-title {
-  margin: 0;
+/* ===== Profile page layout ===== */
+.page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
 }
 
 .status-message,
@@ -120,24 +221,68 @@ body {
   color: var(--text-muted);
 }
 
+.status-message {
+  text-align: center;
+}
+
 .stat-note {
   margin: 1rem 0 0;
 }
 
-.card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
-  padding: 1rem 1.5rem;
+.welcome {
+  margin: 0.5rem 0 1.75rem;
+  text-align: center;
+  font-size: clamp(1.75rem, 4.5vw, 2.75rem);
+  line-height: 1.15;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
   margin-bottom: 1rem;
 }
 
-.card-title {
-  margin-top: 0;
+@media (min-width: 720px) {
+  .grid-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
-.welcome {
-  margin-top: 0;
+@media (min-width: 1000px) {
+  .grid-charts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ===== Cards ===== */
+.card {
+  margin: 0;
+  padding: 1.1rem 1.4rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+}
+
+.card-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+}
+
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.card-head .card-title {
+  margin: 0;
+}
+
+.card-chart {
+  margin-top: 1rem;
 }
 
 .info-list {
@@ -148,7 +293,7 @@ body {
   display: flex;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.35rem 0;
+  padding: 0.45rem 0;
   border-bottom: 1px solid var(--hairline);
 }
 
@@ -170,9 +315,8 @@ body {
   text-transform: capitalize;
 }
 
-.stat-grid {
+.stat-stack {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
   gap: 1rem;
   margin: 0;
 }
@@ -183,9 +327,15 @@ body {
 }
 
 .stat dd {
-  margin: 0.25rem 0 0;
-  font-size: 1.6rem;
+  margin: 0.15rem 0 0;
+  font-size: 2.2rem;
   font-weight: 700;
+  line-height: 1.1;
+}
+
+/* ===== Logout ===== */
+.logout-button {
+  font-weight: 600;
 }
 
 /* ===== Charts: frame, axes, titles, keys and legend ===== */
@@ -490,17 +640,3 @@ body {
   }
 }
 
-/* ===== Narrow screens ===== */
-@media (max-width: 480px) {
-  body {
-    padding: 1rem 0.5rem;
-  }
-
-  .card {
-    padding: 0.75rem 1rem;
-  }
-
-  .stat dd {
-    font-size: 1.3rem;
-  }
-}
