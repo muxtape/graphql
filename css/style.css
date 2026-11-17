@@ -1,10 +1,75 @@
-/* Global styles. Minimal for now; we polish in a later phase. */
+/* ===== Design tokens: every color in the app is defined here ===== */
+:root {
+  color-scheme: light dark;
+
+  --page-bg: #f4f3ef;
+  --surface: #ffffff;
+  --text: #0b0b0b;
+  --text-muted: #555555;
+  --text-faint: #6b6a66;
+  --border: #dddcd5;
+  --hairline: #eeede8;
+  --grid: #e1e0d9;
+  --track: #efeee9;
+  --guide: #898781;
+  --error: #b00020;
+  --accent: #2a78d6;
+
+  --series-projects: #2a78d6;
+  --series-piscines: #eb6834;
+  --series-done: #0f8a62;
+  --series-received: #6250d6;
+
+  --tooltip-bg: #ffffff;
+  --tooltip-border: #cccbc3;
+  --band: rgba(11, 11, 11, 0.06);
+  --key-on-bg: #0b0b0b;
+  --key-on-text: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page-bg: #121211;
+    --surface: #1c1c1b;
+    --text: #f0efec;
+    --text-muted: #c3c2b7;
+    --text-faint: #a3a29b;
+    --border: #34342f;
+    --hairline: #2a2a28;
+    --grid: #2c2c2a;
+    --track: #2d2d2b;
+    --guide: #898781;
+    --error: #ff8a96;
+    --accent: #3987e5;
+
+    --series-projects: #3987e5;
+    --series-piscines: #d95926;
+    --series-done: #199e70;
+    --series-received: #9085e9;
+
+    --tooltip-bg: #262625;
+    --tooltip-border: #4a4a46;
+    --band: rgba(255, 255, 255, 0.07);
+    --key-on-bg: #f0efec;
+    --key-on-text: #121211;
+  }
+}
+
+/* ===== Base ===== */
 body {
   font-family: system-ui, sans-serif;
   margin: 0;
   padding: 2rem 1rem;
+  background: var(--page-bg);
+  color: var(--text);
 }
 
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ===== Login page ===== */
 .login-container {
   max-width: 24rem;
   margin: 0 auto;
@@ -23,10 +88,14 @@ body {
   width: 100%;
   padding: 0.5rem;
   box-sizing: border-box;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
 }
 
 .error-message {
-  color: #b00020;
+  color: var(--error);
 }
 
 .login-button:disabled {
@@ -34,6 +103,7 @@ body {
   cursor: not-allowed;
 }
 
+/* ===== Profile page: header, status and cards ===== */
 .profile-header {
   display: flex;
   justify-content: space-between;
@@ -45,12 +115,18 @@ body {
   margin: 0;
 }
 
-.status-message {
-  color: #555;
+.status-message,
+.stat-note {
+  color: var(--text-muted);
+}
+
+.stat-note {
+  margin: 1rem 0 0;
 }
 
 .card {
-  border: 1px solid #ddd;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 0.5rem;
   padding: 1rem 1.5rem;
   margin-bottom: 1rem;
@@ -73,7 +149,7 @@ body {
   justify-content: space-between;
   gap: 1rem;
   padding: 0.35rem 0;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--hairline);
 }
 
 .info-row:last-child {
@@ -81,7 +157,7 @@ body {
 }
 
 .info-row dt {
-  color: #555;
+  color: var(--text-muted);
 }
 
 .info-row dd {
@@ -102,7 +178,7 @@ body {
 }
 
 .stat dt {
-  color: #555;
+  color: var(--text-muted);
   font-size: 0.9rem;
 }
 
@@ -112,11 +188,7 @@ body {
   font-weight: 700;
 }
 
-.stat-note {
-  color: #555;
-  margin: 1rem 0 0;
-}
-
+/* ===== Charts: frame, axes, titles, keys and legend ===== */
 .chart-card {
   margin: 0;
 }
@@ -133,145 +205,35 @@ body {
   font-weight: 400;
 }
 
-.chart-frame {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
-.chart-grid {
-  stroke: #e1e0d9;
-  stroke-width: 1;
-}
-
-.chart-axis-label {
-  fill: #6b6a66;
-  font-size: 11px;
-}
-
-.chart-line {
-  fill: none;
-  stroke: #2a78d6;
-  stroke-width: 2;
-  stroke-linejoin: round;
-  stroke-linecap: round;
-}
-
-.chart-dot {
-  fill: #2a78d6;
-  stroke: #fff;
-  stroke-width: 2;
+.chart-subtitle {
+  margin: 1rem 0 0.25rem;
+  font-size: 0.95rem;
+  font-weight: 600;
 }
 
 .chart-wrap {
   position: relative;
 }
 
-.chart-hover {
-  visibility: hidden;
-}
-
-.chart-frame.is-active .chart-hover {
-  visibility: visible;
-}
-
-.chart-guide {
-  stroke: #898781;
-  stroke-width: 1;
-  stroke-dasharray: 3 3;
-}
-
-.chart-dot-active {
-  fill: #2a78d6;
-  stroke: #fff;
-  stroke-width: 2;
-}
-
-.chart-overlay {
-  fill: transparent;
-  cursor: crosshair;
-  touch-action: pan-y;
+.chart-frame {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
 .chart-frame:focus-visible {
-  outline: 2px solid #2a78d6;
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-.chart-tooltip {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: max-content;
-  max-width: 14rem;
-  padding: 0.4rem 0.6rem;
-  background: #fff;
-  border: 1px solid #ccc;
-  border-radius: 0.5rem;
-  font-size: 0.8rem;
-  line-height: 1.4;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.1s;
-  z-index: 1;
+.chart-grid {
+  stroke: var(--grid);
+  stroke-width: 1;
 }
 
-.chart-tooltip.is-visible {
-  opacity: 1;
-}
-
-.chart-tooltip-date {
-  color: #6b6a66;
-}
-
-.chart-tooltip-title {
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-
-/* Draw-in animation. The JS adds "is-animating" (held paused) and later "is-playing". */
-.chart-frame.is-animating .chart-line {
-  stroke-linecap: butt;
-  stroke-dasharray: var(--length);
-  stroke-dashoffset: var(--length);
-  animation: chart-draw var(--duration) linear forwards paused;
-}
-
-.chart-frame.is-animating .chart-dot {
-  opacity: 0;
-  animation: chart-dot-in 0.25s ease-out forwards paused;
-  animation-delay: var(--delay);
-}
-
-.chart-frame.is-playing .chart-line,
-.chart-frame.is-playing .chart-dot {
-  animation-play-state: running;
-}
-
-@keyframes chart-draw {
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-@keyframes chart-dot-in {
-  to {
-    opacity: 1;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .chart-frame.is-animating .chart-line,
-  .chart-frame.is-animating .chart-dot {
-    animation: none;
-    opacity: 1;
-    stroke-dasharray: none;
-    stroke-dashoffset: 0;
-  }
-
-  .chart-replay {
-    display: none;
-  }
+.chart-axis-label {
+  fill: var(--text-faint);
+  font-size: 11px;
 }
 
 .chart-toolbar {
@@ -289,16 +251,16 @@ body {
 }
 
 .view-key[aria-pressed="true"] {
-  background: #0b0b0b;
-  border-color: #0b0b0b;
-  color: #fff;
+  background: var(--key-on-bg);
+  border-color: var(--key-on-bg);
+  color: var(--key-on-text);
 }
 
 .chart-legend {
   display: flex;
   gap: 1rem;
   font-size: 0.8rem;
-  color: #555;
+  color: var(--text-muted);
 }
 
 .chart-legend span {
@@ -315,23 +277,125 @@ body {
 }
 
 .legend-projects {
-  background: #2a78d6;
+  background: var(--series-projects);
 }
 
 .legend-piscines {
-  background: #eb6834;
+  background: var(--series-piscines);
 }
 
+/* ===== XP line chart ===== */
+.chart-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.chart-dot {
+  fill: var(--accent);
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+
+.chart-dot-active {
+  fill: var(--accent);
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+
+/* ===== Monthly bars ===== */
 .chart-bar-projects {
-  fill: #2a78d6;
+  fill: var(--series-projects);
 }
 
 .chart-bar-piscines {
-  fill: #eb6834;
+  fill: var(--series-piscines);
 }
 
 .chart-band {
-  fill: rgba(11, 11, 11, 0.06);
+  fill: var(--band);
+}
+
+/* ===== Horizontal bars (skills, audits) ===== */
+.chart-hbar-label {
+  fill: var(--text);
+  font-size: 13px;
+}
+
+.chart-hbar-value {
+  fill: var(--text-muted);
+  font-size: 13px;
+}
+
+.chart-hbar-track {
+  fill: var(--track);
+}
+
+.chart-hbar-skill {
+  fill: var(--accent);
+}
+
+.chart-hbar-done {
+  fill: var(--series-done);
+}
+
+.chart-hbar-received {
+  fill: var(--series-received);
+}
+
+/* ===== Hover: guide line, overlay and tooltip ===== */
+.chart-hover {
+  visibility: hidden;
+}
+
+.chart-frame.is-active .chart-hover {
+  visibility: visible;
+}
+
+.chart-guide {
+  stroke: var(--guide);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.chart-overlay {
+  fill: transparent;
+  cursor: crosshair;
+  touch-action: pan-y;
+}
+
+.chart-tooltip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: 14rem;
+  padding: 0.4rem 0.6rem;
+  background: var(--tooltip-bg);
+  color: var(--text);
+  border: 1px solid var(--tooltip-border);
+  border-radius: 0.5rem;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.1s;
+  z-index: 1;
+}
+
+.chart-tooltip.is-visible {
+  opacity: 1;
+}
+
+.chart-tooltip-date {
+  color: var(--text-muted);
+}
+
+.chart-tooltip-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .chart-tooltip-row {
@@ -344,7 +408,20 @@ body {
   flex: none;
 }
 
-/* Bars rise from the baseline, one month after another. */
+/* ===== Animations (the JS adds "is-animating", then "is-playing") ===== */
+.chart-frame.is-animating .chart-line {
+  stroke-linecap: butt;
+  stroke-dasharray: var(--length);
+  stroke-dashoffset: var(--length);
+  animation: chart-draw var(--duration) linear forwards paused;
+}
+
+.chart-frame.is-animating .chart-dot {
+  opacity: 0;
+  animation: chart-dot-in 0.25s ease-out forwards paused;
+  animation-delay: var(--delay);
+}
+
 .chart-frame.is-animating .chart-bar-group {
   transform-box: fill-box;
   transform-origin: 50% 100%;
@@ -352,8 +429,30 @@ body {
   animation-delay: calc(var(--i) * 60ms);
 }
 
-.chart-frame.is-playing .chart-bar-group {
+.chart-frame.is-animating .chart-hbar {
+  transform-box: fill-box;
+  transform-origin: 0 50%;
+  animation: chart-hbar-grow 0.6s ease-out both paused;
+  animation-delay: calc(var(--i) * 80ms);
+}
+
+.chart-frame.is-playing .chart-line,
+.chart-frame.is-playing .chart-dot,
+.chart-frame.is-playing .chart-bar-group,
+.chart-frame.is-playing .chart-hbar {
   animation-play-state: running;
+}
+
+@keyframes chart-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes chart-dot-in {
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes chart-bar-rise {
@@ -363,57 +462,6 @@ body {
   to {
     transform: scaleY(1);
   }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .chart-frame.is-animating .chart-bar-group {
-    animation: none;
-    transform: none;
-  }
-}
-
-.chart-subtitle {
-  margin: 1rem 0 0.25rem;
-  font-size: 0.95rem;
-  font-weight: 600;
-}
-
-.chart-hbar-label {
-  fill: #0b0b0b;
-  font-size: 13px;
-}
-
-.chart-hbar-value {
-  fill: #555;
-  font-size: 13px;
-}
-
-.chart-hbar-track {
-  fill: #efeee9;
-}
-
-.chart-hbar-skill {
-  fill: #2a78d6;
-}
-
-.chart-hbar-done {
-  fill: #0f8a62;
-}
-
-.chart-hbar-received {
-  fill: #6250d6;
-}
-
-/* Horizontal bars grow from the left, one row after another. */
-.chart-frame.is-animating .chart-hbar {
-  transform-box: fill-box;
-  transform-origin: 0 50%;
-  animation: chart-hbar-grow 0.6s ease-out both paused;
-  animation-delay: calc(var(--i) * 80ms);
-}
-
-.chart-frame.is-playing .chart-hbar {
-  animation-play-state: running;
 }
 
 @keyframes chart-hbar-grow {
@@ -426,8 +474,18 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .chart-frame.is-animating .chart-line,
+  .chart-frame.is-animating .chart-dot,
+  .chart-frame.is-animating .chart-bar-group,
   .chart-frame.is-animating .chart-hbar {
     animation: none;
+    opacity: 1;
     transform: none;
+    stroke-dasharray: none;
+    stroke-dashoffset: 0;
+  }
+
+  .chart-replay {
+    display: none;
   }
 }
