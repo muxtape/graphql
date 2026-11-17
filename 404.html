@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#161718">
+  <meta name="robots" content="noindex">
+  <title>Page not found | StatZone01</title>
+  <script>
+    // This page is served at whatever URL the visitor typed, so relative paths cannot be
+    // trusted. On GitHub Pages the site root is "/<repo>/"; elsewhere it is "/".
+    var root = location.hostname.endsWith(".github.io")
+      ? "/" + location.pathname.split("/")[1] + "/"
+      : "/";
+    document.write('<link rel="stylesheet" href="' + root + 'css/style.css">');
+  </script>
+</head>
+<body class="login-page">
+  <main class="login-container">
+    <div class="login-card not-found">
+      <div class="brand brand-large">
+        <span class="brand-stat">Stat</span><img id="not-found-logo" class="brand-logo" alt="Zone01">
+      </div>
+      <p class="not-found-code">404</p>
+      <h1 class="not-found-title">Page not found</h1>
+      <p class="login-subtitle">That page doesn't exist or has moved.</p>
+      <a id="not-found-home" class="button-link" href="index.html">Back to StatZone01</a>
+    </div>
+  </main>
+
+  <script>
+    document.getElementById("not-found-logo").src = root + "assets/zone01-logo.svg";
+    document.getElementById("not-found-home").href = root + "index.html";
+  </script>
+</body>
+</html>
