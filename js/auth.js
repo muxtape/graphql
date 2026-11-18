@@ -112,8 +112,7 @@ form.addEventListener("submit", async (event) => {
     window.location.replace("profile.html");
   } catch (error) {
     if (error instanceof SigninError) {
-      showError(ERROR_MESSAGES[error.kind]);
-      console.log(`Signin failed (${error.kind}):`, error.message);
+      showError(ERROR_MESSAGES[error.kind]);      
 
       if (error.kind === "credentials") {
         form.elements.password.value = "";
